@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedPaw — Know Your Internet</title>
+    <meta name="description" content="SpeedPaw is a fast, friendly internet speed testing tool. Test your download, upload, ping, and jitter in seconds.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ─── HEADER ────────────────────────────────────────────────── -->
+    <header class="header" role="banner">
+        <div class="header-inner">
+            <!-- Logo -->
+            <a href="#/" class="logo" aria-label="SpeedPaw — home">
+                <svg class="logo-icon" width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
+                    <rect width="100" height="100" rx="22" fill="var(--accent)"/>
+                    <ellipse cx="50" cy="62" rx="18" ry="16" fill="#fff" opacity="0.95"/>
+                    <ellipse cx="30" cy="45" rx="9" ry="8" fill="#fff" opacity="0.95"/>
+                    <ellipse cx="70" cy="45" rx="9" ry="8" fill="#fff" opacity="0.95"/>
+                    <ellipse cx="41" cy="34" rx="7" ry="6.5" fill="#fff" opacity="0.95"/>
+                    <ellipse cx="59" cy="34" rx="7" ry="6.5" fill="#fff" opacity="0.95"/>
+                </svg>
+                <span>SpeedPaw</span>
+            </a>
+
+            <!-- Nav Controls -->
+            <nav class="header-nav" id="header-nav" aria-label="Primary navigation">
+                <a href="#/" class="nav-link" data-route="/">Speed Test</a>
+                <a href="#/video-test" class="nav-link" data-route="/video-test">Video Test</a>
+                <a href="#/" class="nav-link disabled-link">History</a>
+                
+                <div class="nav-dropdown">
+                    <button class="nav-link dropbtn">Tools <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    <div class="dropdown-content">
+                        <a href="#/">Speed Test</a>
+                        <a href="#/video-test">Video Quality Test</a>
+                        <a href="#/screen-res">Screen Resolution</a>
+                        <a href="#/" class="disabled-link">Display Quality</a>
+                        <a href="#/" class="disabled-link">Ping Test</a>
+                        <a href="#/" class="disabled-link">IP Address</a>
+                    </div>
+                </div>
+                
+                <div class="nav-dropdown">
+                    <button class="nav-link dropbtn">Learn <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    <div class="dropdown-content">
+                        <a href="#/" class="disabled-link">Internet Speed Guide</a>
+                        <a href="#/" class="disabled-link">What is Ping?</a>
+                        <a href="#/" class="disabled-link">Wi-Fi Guide</a>
+                        <a href="#/" class="disabled-link">FAQ</a>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="header-actions">
+                <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme">
+                    <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+                <button id="mobile-menu-btn" class="icon-btn mobile-only" aria-label="Open menu">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ─── MAIN APP ROUTER CONTAINER ─────────────────────────────── -->
+    <main id="app" class="app" role="main">
+
+        <!-- ==========================================
+             VIEW: SPEED TEST
+             ========================================== -->
+        <div id="view-speed-test" class="view-section">
+            <section id="test-area" class="test-area" aria-label="Speed test" data-state="ready">
+
+                <!-- LEFT PANEL -->
+                <aside class="left-panel">
+                    <div class="hero-text desktop-only">
+                        <h1>Know your<br>Internet.</h1>
+                        <p>Fast. Reliable. <span class="text-accent">Accurate.</span></p>
+                    </div>
+                    
+                    <div class="connection-quality-box" id="conn-quality-box">
+                        <div class="cq-header">
+                            <span class="cq-title">Your Connection</span>
+                        </div>
+                        <div class="cq-status">
+                            <span class="cq-value" id="cq-value">Excellent</span>
+                            <div class="cq-bars">
+                                <span class="bar full"></span><span class="bar full"></span><span class="bar full"></span><span class="bar full"></span>
+                            </div>
+                        </div>
+                        <p class="cq-desc" id="cq-desc">Great for 4K streaming, gaming & more.</p>
+                        
+                        <!-- NEW Meta Info -->
+                        <div class="cq-meta mt-2">
+                            <div class="meta-row"><span>IP:</span> <strong id="val-ip">--</strong></div>
+                            <div class="meta-row"><span>Tested:</span> <strong id="val-time">--</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- PREMIUM 3D ROBOT CAT MASCOT -->
+                    <div class="cat-wrap" aria-hidden="true">
+                        <svg id="cat-svg" class="cat-svg 3d-effect" viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#e2e8f0"/>
+                                    <stop offset="50%" stop-color="#cbd5e1"/>
+                                    <stop offset="100%" stop-color="#94a3b8"/>
+                                </linearGradient>
+                                <linearGradient id="darkMetalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#1e293b"/>
+                                    <stop offset="100%" stop-color="#0f172a"/>
+                                </linearGradient>
+                                <linearGradient id="visorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#020617"/>
+                                    <stop offset="100%" stop-color="#0f172a"/>
+                                </linearGradient>
+                                <radialGradient id="visorGlow" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.2"/>
+                                    <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+                                </radialGradient>
+                                <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3" result="blur"/>
+                                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                                <filter id="purpleGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="4" result="blur"/>
+                                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                            </defs>
+                            
+                            <!-- TAIL -->
+                            <path d="M120,160 Q150,170 140,140 Q135,120 150,110" fill="none" stroke="url(#darkMetalGrad)" stroke-width="12" stroke-linecap="round"/>
+                            <circle cx="150" cy="110" r="8" fill="#8b5cf6" filter="url(#purpleGlow)"/>
+
+                            <!-- EARS (Triangular, Metallic) -->
+                            <g class="cat-ears">
+                                <polygon points="20,70 8,20 55,55" fill="url(#metalGrad)" stroke="#64748b" stroke-width="1.5"/>
+                                <polygon points="25,62 18,35 48,55" fill="url(#darkMetalGrad)"/>
+                                <polygon points="140,70 152,20 105,55" fill="url(#metalGrad)" stroke="#64748b" stroke-width="1.5"/>
+                                <polygon points="135,62 142,35 112,55" fill="url(#darkMetalGrad)"/>
+                            </g>
+
+                            <!-- HEAD (Rounded Mechanical) -->
+                            <rect class="cat-head" x="18" y="55" width="124" height="95" rx="35" fill="url(#metalGrad)"/>
+                            
+                            <!-- EAR GLOW PANELS -->
+                            <path d="M 28 40 L 32 55" stroke="#22d3ee" stroke-width="3" stroke-linecap="round" filter="url(#cyanGlow)"/>
+                            <path d="M 132 40 L 128 55" stroke="#22d3ee" stroke-width="3" stroke-linecap="round" filter="url(#cyanGlow)"/>
+
+                            <!-- VISOR SCREEN (Dark Navy) -->
+                            <rect class="cat-visor" x="26" y="65" width="108" height="65" rx="20" fill="url(#visorGrad)"/>
+                            <rect class="cat-visor-glow" x="26" y="65" width="108" height="65" rx="20" fill="url(#visorGlow)"/>
+                            
+                            <!-- VISOR GLASS REFLECTION -->
+                            <path d="M35 70 Q 80 68 125 70 Q 80 85 35 70" fill="#ffffff" opacity="0.1"/>
+
+                            <!-- EXPRESSIVE EYES -->
+                            <g class="cat-eyes">
+                                <!-- Eye Left -->
+                                <rect id="eye-l-bg" x="42" y="85" width="22" height="28" rx="11" fill="#0f172a"/>
+                                <path id="eye-l" d="M 44,99 Q 53,88 62,99" fill="none" stroke="#22d3ee" stroke-width="5" stroke-linecap="round" filter="url(#cyanGlow)"/>
+                                <!-- Eye Right -->
+                                <rect id="eye-r-bg" x="96" y="85" width="22" height="28" rx="11" fill="#0f172a"/>
+                                <path id="eye-r" d="M 98,99 Q 107,88 116,99" fill="none" stroke="#22d3ee" stroke-width="5" stroke-linecap="round" filter="url(#cyanGlow)"/>
+                            </g>
+
+                            <!-- SMALL CAT NOSE/MOUTH -->
+                            <path d="M77,118 L80,121 L83,118 Z" fill="#8b5cf6" filter="url(#purpleGlow)"/>
+                            <path id="cat-mouth" d="M72,126 Q80,124 88,126" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" filter="url(#cyanGlow)"/>
+
+                            <!-- SUBTLE ROBOTIC WHISKERS -->
+                            <g stroke="url(#metalGrad)" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
+                                <line x1="20" y1="100" x2="6" y2="95" />
+                                <line x1="20" y1="108" x2="4" y2="108" />
+                                <line x1="20" y1="116" x2="8" y2="120" />
+                                <line x1="140" y1="100" x2="154" y2="95" />
+                                <line x1="140" y1="108" x2="156" y2="108" />
+                                <line x1="140" y1="116" x2="152" y2="120" />
+                            </g>
+
+                            <!-- BODY (Mechanical, Navy + Metallic) -->
+                            <rect x="35" y="145" width="90" height="45" rx="20" fill="url(#darkMetalGrad)"/>
+                            <rect x="50" y="152" width="60" height="30" rx="10" fill="url(#metalGrad)"/>
+                            <!-- Chest Core -->
+                            <circle id="chest-led" cx="80" cy="167" r="6" fill="#8b5cf6" filter="url(#purpleGlow)"/>
+
+                            <!-- PAWS (Robotic) -->
+                            <rect x="25" y="180" width="30" height="15" rx="7.5" fill="url(#metalGrad)"/>
+                            <line x1="35" y1="185" x2="35" y2="190" stroke="#0f172a" stroke-width="2"/>
+                            <line x1="45" y1="185" x2="45" y2="190" stroke="#0f172a" stroke-width="2"/>
+
+                            <rect x="105" y="180" width="30" height="15" rx="7.5" fill="url(#metalGrad)"/>
+                            <line x1="115" y1="185" x2="115" y2="190" stroke="#0f172a" stroke-width="2"/>
+                            <line x1="125" y1="185" x2="125" y2="190" stroke="#0f172a" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    
+                    <div class="mobile-only text-center mt-2">
+                        <h2 class="mobile-hero-title" id="cat-status-msg">Ready to sniff out your speed?</h2>
+                    </div>
+                </aside>
+
+                <!-- CENTER: Gauge + Action -->
+                <div class="gauge-panel">
+                    <div class="gauge-container" aria-label="Speed gauge">
+                        <svg id="gauge-svg" class="gauge-svg" viewBox="0 0 300 200" aria-hidden="true">
+                            <defs>
+                                <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+                                    <feGaussianBlur stdDeviation="6" result="blur"/>
+                                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                                <linearGradient id="arcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#8b5cf6"/>
+                                    <stop offset="50%" stop-color="#3b82f6"/>
+                                    <stop offset="100%" stop-color="#22d3ee"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Scale Numbers -->
+                            <text x="35" y="145" fill="var(--text-muted)" font-size="10" font-family="var(--font-display)" font-weight="600">0</text>
+                            <text x="50" y="85" fill="var(--text-muted)" font-size="10" font-family="var(--font-display)" font-weight="600">1</text>
+                            <text x="85" y="45" fill="var(--text-muted)" font-size="10" font-family="var(--font-display)" font-weight="600">5</text>
+                            <text x="145" y="25" fill="var(--text-muted)" font-size="10" font-family="var(--font-display)" font-weight="600">10</text>
+                            <text x="210" y="45" fill="var(--text-muted)" font-size="10" font-family="var(--font-display)" font-weight="600">30</text>
+                            <text x="245" y="85" fill="var(--text-muted)" font-size="10" font-family="var(--font-display)" font-weight="600">50</text>
+                            <text x="260" y="145" fill="var(--text-muted)" font-size="10" font-family="var(--font-display)" font-weight="600">100</text>
+                            
+                            <!-- Track arc (background) -->
+                            <path class="gauge-track" d="M 21.5,153 A 110,110 0 1,1 278.5,153" fill="none" stroke="rgba(139,92,246,0.1)" stroke-width="18" stroke-linecap="round"/>
+                            <!-- Progress arc -->
+                            <path id="gauge-arc" d="M 21.5,153 A 110,110 0 1,1 278.5,153" fill="none" stroke="url(#arcGradient)" stroke-width="18" stroke-linecap="round" stroke-dasharray="345.4" stroke-dashoffset="345.4" filter="url(#glow)"/>
+                            
+                            <!-- Ticks -->
+                            <g class="gauge-ticks" opacity="0.3">
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="2" stroke-linecap="round" transform="rotate(-150,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(-120,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(-90,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(-60,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(-30,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="2" stroke-linecap="round" transform="rotate(0,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(30,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(60,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(90,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="1.5" stroke-linecap="round" transform="rotate(120,150,150)"/>
+                                <line x1="150" y1="52" x2="150" y2="60" stroke="#fff" stroke-width="2" stroke-linecap="round" transform="rotate(150,150,150)"/>
+                            </g>
+                        </svg>
+
+                        <!-- Speed number overlay -->
+                        <div class="gauge-readout">
+                            <span id="current-speed" class="speed-number" aria-live="polite" aria-atomic="true">0.0</span>
+                            <span id="current-unit" class="speed-unit">Mbps</span>
+                            <span id="phase-text" class="phase-text">SPEED TEST</span>
+                        </div>
+                    </div>
+
+                    <!-- Server Info under gauge -->
+                    <div class="server-info-wrap">
+                        <div class="server-status">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <span id="server-status-text">Ready to test</span>
+                            <span id="server-location">London, UK</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Primary action button -->
+                    <div class="action-zone">
+                        <button id="primary-btn" class="primary-btn" aria-label="Start speed test">
+                            <!-- Play icon -->
+                            <svg class="btn-icon btn-icon-play" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <!-- Refresh icon -->
+                            <svg class="btn-icon btn-icon-refresh" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                            <span class="btn-text">Start Test</span>
+                        </button>
+                        <button class="text-btn change-server-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Change Server</button>
+                    </div>
+                </div>
+
+                <!-- RIGHT PANEL: Metrics -->
+                <aside class="right-panel metrics-panel" aria-label="Test metrics">
+                    <div class="metric-card mobile-only" id="m-dl-mobile">
+                        <div class="metric-header">
+                            <div class="metric-icon-wrap dl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+                            <span class="metric-lbl">Download</span>
+                        </div>
+                        <div class="metric-val-row">
+                            <span class="metric-val" id="val-dl-mobile">--</span>
+                            <span class="metric-unit">Mbps</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card" id="m-ul">
+                        <div class="metric-header">
+                            <div class="metric-icon-wrap ul"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+                            <span class="metric-lbl">Upload</span>
+                        </div>
+                        <div class="metric-val-row">
+                            <span class="metric-val" id="val-ul">--</span>
+                            <span class="metric-unit">Mbps</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card" id="m-ping">
+                        <div class="metric-header">
+                            <div class="metric-icon-wrap ping"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                            <span class="metric-lbl">Ping</span>
+                        </div>
+                        <div class="metric-val-row">
+                            <span class="metric-val" id="val-ping">--</span>
+                            <span class="metric-unit">ms</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card" id="m-jitter">
+                        <div class="metric-header">
+                            <div class="metric-icon-wrap jitter"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                            <span class="metric-lbl">Jitter</span>
+                        </div>
+                        <div class="metric-val-row">
+                            <span class="metric-val" id="val-jitter">--</span>
+                            <span class="metric-unit">ms</span>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+
+            <!-- Progress bar -->
+            <div class="progress-bar-wrap" id="progress-wrap" hidden aria-hidden="true">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+
+            <!-- SMART RESULTS SECTION (Hidden until test finishes) -->
+            <section id="smart-results" class="smart-results-section mt-4" hidden>
+                <h2 class="section-title text-center">What Your Result Means</h2>
+                <div class="smart-grid">
+                    <div class="smart-card">
+                        <div class="smart-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg></div>
+                        <h4>Streaming</h4>
+                        <span class="smart-val" id="sr-stream">--</span>
+                    </div>
+                    <div class="smart-card">
+                        <div class="smart-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.6 11.6L22 7v10l-6.4-4.5v-1zM4 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7c0-1.1.9-2 2-2z"/></svg></div>
+                        <h4>Video Calls</h4>
+                        <span class="smart-val" id="sr-video">--</span>
+                    </div>
+                    <div class="smart-card">
+                        <div class="smart-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M12 12h.01"></path><path d="M17 12h.01"></path><path d="M7 12h.01"></path></svg></div>
+                        <h4>Gaming</h4>
+                        <span class="smart-val" id="sr-gaming">--</span>
+                    </div>
+                    <div class="smart-card">
+                        <div class="smart-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>
+                        <h4>Browsing</h4>
+                        <span class="smart-val" id="sr-browsing">--</span>
+                    </div>
+                    <div class="smart-card">
+                        <div class="smart-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg></div>
+                        <h4>4K Content</h4>
+                        <span class="smart-val" id="sr-4k">--</span>
+                    </div>
+                </div>
+                <p class="text-center text-muted mt-2" style="font-size:0.8rem;">Note: Recommendations are approximate based on test results.</p>
+            </section>
+
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+            <div class="ad-space ad-300 mobile-only mt-2"><span>ADVERTISEMENT<br>300 x 50</span></div>
+
+            <!-- INFO CARDS -->
+            <section class="info-section mt-4">
+                <h2 class="section-title text-center">Understand Your Internet Better</h2>
+                <div class="info-cards-grid">
+                    <div class="info-card">
+                        <div class="icon-circle dl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+                        <div class="info-text"><h4>Download Speed</h4><p>Measures how fast data is downloaded to your device.</p></div>
+                    </div>
+                    <div class="info-card">
+                        <div class="icon-circle ul"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+                        <div class="info-text"><h4>Upload Speed</h4><p>Measures how fast data is uploaded from your device.</p></div>
+                    </div>
+                    <div class="info-card">
+                        <div class="icon-circle ping"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                        <div class="info-text"><h4>Ping (Latency)</h4><p>Time for a small packet to travel to the server and back.</p></div>
+                    </div>
+                    <div class="info-card">
+                        <div class="icon-circle jitter"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                        <div class="info-text"><h4>Jitter</h4><p>Variation in ping. Lower is better for stable connections.</p></div>
+                    </div>
+                    <div class="info-card">
+                        <div class="icon-circle heart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></div>
+                        <div class="info-text"><h4>Connection Quality</h4><p>Overall quality based on speed, ping & jitter.</p></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TABLES / LISTS -->
+            <section class="details-section desktop-only mt-4">
+                <div class="details-grid">
+                    <div class="details-card">
+                        <h3>What is a Good Internet Speed?</h3>
+                        <table class="data-table">
+                            <thead><tr><th>Activity</th><th>Download Speed</th></tr></thead>
+                            <tbody>
+                                <tr><td>Browsing / Email</td><td>5 – 10 Mbps</td></tr>
+                                <tr><td>HD Streaming (1080p)</td><td>5 – 10 Mbps</td></tr>
+                                <tr><td>4K Streaming</td><td>25+ Mbps</td></tr>
+                                <tr><td>Video Calls</td><td>5 – 10 Mbps</td></tr>
+                                <tr><td>Online Gaming</td><td>15+ Mbps (Low Ping)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="details-card">
+                        <h3>Why is My Internet Slow?</h3>
+                        <ul class="check-list">
+                            <li><svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Too many devices connected</li>
+                            <li><svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Wi-Fi signal is weak</li>
+                            <li><svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Background downloads or updates</li>
+                            <li><svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Old router or equipment</li>
+                            <li><svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ISP congestion or network issues</li>
+                        </ul>
+                    </div>
+                    <div class="details-card">
+                        <h3>Internet Speed for Streaming</h3>
+                        <table class="data-table icon-table">
+                            <tbody>
+                                <tr><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 360p</td><td>3 Mbps</td></tr>
+                                <tr><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 720p</td><td>5 Mbps</td></tr>
+                                <tr><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 1080p</td><td>8 Mbps</td></tr>
+                                <tr><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 4K</td><td>25 Mbps</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Guide Mobile -->
+            <section class="quick-guide-section mobile-only">
+                <div class="quick-guide-header">
+                    <h3>Quick Guide</h3>
+                </div>
+                <div class="accordion">
+                    <div class="accordion-item"><span>What is Download Speed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                    <div class="accordion-item"><span>What is Upload Speed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                    <div class="accordion-item"><span>What is Ping?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                    <div class="accordion-item"><span>What is Jitter?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ==========================================
+             VIEW: VIDEO TEST
+             ========================================== -->
+        <div id="view-video-test" class="view-section" hidden>
+            <section class="hero-text text-center" style="margin-bottom:2rem;">
+                <h1>Video Quality <span class="text-accent">Test</span>.</h1>
+                <p>Find out what video resolutions your connection can handle without buffering.</p>
+            </section>
+
+            <div class="tool-card-wrap">
+                <div class="tool-card text-center">
+                    <div id="video-test-gauge" class="tool-gauge">
+                        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="url(#arcGradient)" stroke-width="1.5" class="video-icon"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+                        <h2 id="vt-status" class="mt-2" style="font-size:2rem; font-family:var(--font-display);">Ready</h2>
+                        <p id="vt-desc" class="text-muted">Click Start to test video bandwidth</p>
+                    </div>
+                    <button id="btn-video-test" class="primary-btn mx-auto mt-4" style="margin-left:auto; margin-right:auto;">Start Video Test</button>
+                    
+                    <div class="progress-bar-wrap mt-4" id="vt-progress-wrap" hidden>
+                        <div class="progress-bar" id="vt-progress-bar"></div>
+                    </div>
+                </div>
+
+                <div class="details-card mt-4">
+                    <h3>Supported Resolutions</h3>
+                    <table class="data-table icon-table" id="vt-table">
+                        <tbody>
+                            <tr data-res="360p"><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 360p</td><td class="res-status text-muted">--</td></tr>
+                            <tr data-res="480p"><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 480p</td><td class="res-status text-muted">--</td></tr>
+                            <tr data-res="720p"><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 720p</td><td class="res-status text-muted">--</td></tr>
+                            <tr data-res="1080p"><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 1080p</td><td class="res-status text-muted">--</td></tr>
+                            <tr data-res="1440p"><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 1440p</td><td class="res-status text-muted">--</td></tr>
+                            <tr data-res="4K"><td><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 4K</td><td class="res-status text-muted">--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: SCREEN RESOLUTION
+             ========================================== -->
+        <div id="view-screen-res" class="view-section" hidden>
+            <section class="hero-text text-center" style="margin-bottom:2rem;">
+                <h1>Screen <span class="text-accent">Resolution</span>.</h1>
+                <p>Detect your device's screen dimensions and viewport properties.</p>
+            </section>
+
+            <div class="tool-card-wrap">
+                <div class="tool-card text-center">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" class="mb-2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    <h2 style="font-size:3rem; font-family:var(--font-display); line-height:1;" id="sr-main-res">-- x --</h2>
+                    <p class="text-muted mt-2">Physical Screen Resolution</p>
+                </div>
+
+                <div class="details-grid mt-4" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="details-card">
+                        <h3>Display Properties</h3>
+                        <table class="data-table">
+                            <tbody>
+                                <tr><td>Viewport Dimensions</td><td id="sr-viewport">--</td></tr>
+                                <tr><td>Device Pixel Ratio</td><td id="sr-dpr">--</td></tr>
+                                <tr><td>Color Depth</td><td id="sr-color">--</td></tr>
+                                <tr><td>Orientation</td><td id="sr-orientation">--</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="details-card">
+                        <h3>Browser & OS</h3>
+                        <table class="data-table">
+                            <tbody>
+                                <tr><td>Browser</td><td id="sr-browser">--</td></tr>
+                                <tr><td>Operating System</td><td id="sr-os">--</td></tr>
+                                <tr><td>Platform</td><td id="sr-platform">--</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ─── FOOTER ─────────────────────────────────────────────────── -->
+    <footer class="footer mt-4">
+        <span class="footer-brand">SpeedPaw</span>
+        <span class="footer-sep">·</span>
+        <span class="footer-note">Results are simulated. v0.2 architecture.</span>
+        <span class="footer-sep">·</span>
+        <span class="footer-copy">© 2026</span>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
