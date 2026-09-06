@@ -235,4 +235,21 @@ v1.0 - Public launch
 
 ## Current Version
 
-v0.1
+v0.2 - Real Speed Test Architecture Implemented
+
+### v0.2 Architecture Summary
+- **Frontend Engine**: Replaced simulated timing loops in `script.js` with real measurements:
+  - Latency: Multi-sample `fetch` with warmup drop, median ping, and mean absolute deviation jitter calculation.
+  - Download: High-performance chunked `ReadableStream` reader using `fetch` to measure Mbps in real time with low memory footprint.
+  - Upload: Binary array payload streamed via `XMLHttpRequest` tracking `xhr.upload.onprogress`.
+  - Abort / Cancel: Integrated `AbortController` hooked into the primary button (`data-mode="cancel"`), cleanly halting streams.
+  - Configuration: Isolated environment target via `config.js` (`window.SPEEDPAW_CONFIG`).
+- **Backend Architecture (`server/`)**:
+  - Dedicated Node.js & Express service designed for zero-cost deployment on Oracle Cloud Always Free (ARM Ampere A1).
+  - Routes:
+    - `/api/health`: Health check and timestamp.
+    - `/api/config`: Dynamic server location and capability metadata.
+    - `/api/ping`: Ultra-lightweight endpoint with no-cache headers.
+    - `/api/download`: Cryptographically random uncompressible byte stream with backpressure handling (`res.write` / `drain`).
+    - `/api/upload`: High-throughput stream consumer discarding chunks to measure ingress without disk I/O bottleneck.
+  - Security: Rate limiting (`express-rate-limit`) and CORS restriction for production readiness.

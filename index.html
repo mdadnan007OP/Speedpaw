@@ -3,8 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpeedPaw — Know Your Internet</title>
-    <meta name="description" content="SpeedPaw is a fast, friendly internet speed testing tool. Test your download, upload, ping, and jitter in seconds.">
+    <title>SpeedPaw — Free Internet Speed & Network Quality Tester</title>
+    <meta name="description" content="SpeedPaw is a fast, accurate internet speed test. Measure real download speed, upload speed, ping, and jitter with smart connection quality analysis.">
+    <meta name="keywords" content="speed test, internet speed test, download speed, upload speed, ping test, jitter test, wifi speed test, broadband tester">
+    <meta name="theme-color" content="#0b0f1a">
+    <link rel="canonical" href="https://speedpaw.com/">
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://speedpaw.com/">
+    <meta property="og:title" content="SpeedPaw — Know Your Internet">
+    <meta property="og:description" content="Fast, accurate internet speed testing. Test real download, upload, latency, and jitter in seconds.">
+    <meta property="og:site_name" content="SpeedPaw">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SpeedPaw — Know Your Internet">
+    <meta name="twitter:description" content="Fast, reliable, and private internet speed testing with smart connection insights.">
+
+    <!-- Structured Data (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "SpeedPaw",
+      "url": "https://speedpaw.com/",
+      "description": "Free, privacy-first internet speed and network quality testing tool measuring download, upload, ping, and jitter.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,7 +67,7 @@
             <nav class="header-nav" id="header-nav" aria-label="Primary navigation">
                 <a href="#/" class="nav-link" data-route="/">Speed Test</a>
                 <a href="#/video-test" class="nav-link" data-route="/video-test">Video Test</a>
-                <a href="#/" class="nav-link disabled-link">History</a>
+                <a href="#/history" class="nav-link" data-route="/history">History</a>
                 
                 <div class="nav-dropdown">
                     <button class="nav-link dropbtn">Tools <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
@@ -42,19 +75,20 @@
                         <a href="#/">Speed Test</a>
                         <a href="#/video-test">Video Quality Test</a>
                         <a href="#/screen-res">Screen Resolution</a>
-                        <a href="#/" class="disabled-link">Display Quality</a>
-                        <a href="#/" class="disabled-link">Ping Test</a>
-                        <a href="#/" class="disabled-link">IP Address</a>
+                        <a href="#/ping-test">Ping & Jitter Test</a>
+                        <a href="#/ip-info">IP & Connection Info</a>
                     </div>
                 </div>
                 
                 <div class="nav-dropdown">
                     <button class="nav-link dropbtn">Learn <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
                     <div class="dropdown-content">
-                        <a href="#/" class="disabled-link">Internet Speed Guide</a>
-                        <a href="#/" class="disabled-link">What is Ping?</a>
-                        <a href="#/" class="disabled-link">Wi-Fi Guide</a>
-                        <a href="#/" class="disabled-link">FAQ</a>
+                        <a href="#/learn/speed-guide">Internet Speed Guide</a>
+                        <a href="#/learn/ping-jitter">What is Ping & Jitter?</a>
+                        <a href="#/learn/good-speed">What is Good Speed?</a>
+                        <a href="#/learn/wifi-guide">Wi-Fi Troubleshooting</a>
+                        <a href="#/learn/slow-internet">Why is Internet Slow?</a>
+                        <a href="#/learn/faq">Frequently Asked Questions</a>
                     </div>
                 </div>
             </nav>
@@ -64,7 +98,7 @@
                     <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
                     <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                 </button>
-                <button id="mobile-menu-btn" class="icon-btn mobile-only" aria-label="Open menu">
+                <button id="mobile-menu-btn" class="icon-btn" aria-label="Open menu" aria-expanded="false">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>
             </div>
@@ -279,6 +313,8 @@
                             <svg class="btn-icon btn-icon-play" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                             <!-- Refresh icon -->
                             <svg class="btn-icon btn-icon-refresh" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                            <!-- Cancel icon -->
+                            <svg class="btn-icon btn-icon-cancel" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             <span class="btn-text">Start Test</span>
                         </button>
                         <button class="text-btn change-server-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Change Server</button>
@@ -447,10 +483,22 @@
                     <h3>Quick Guide</h3>
                 </div>
                 <div class="accordion">
-                    <div class="accordion-item"><span>What is Download Speed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
-                    <div class="accordion-item"><span>What is Upload Speed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
-                    <div class="accordion-item"><span>What is Ping?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
-                    <div class="accordion-item"><span>What is Jitter?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                    <div class="accordion-item">
+                        <div class="accordion-header"><span>What is Download Speed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                        <div class="accordion-content"><p>Download speed measures how fast information is transferred from the internet to your device. It affects things like loading websites and streaming video.</p></div>
+                    </div>
+                    <div class="accordion-item">
+                        <div class="accordion-header"><span>What is Upload Speed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                        <div class="accordion-content"><p>Upload speed measures how fast data is sent from your device to the internet. This is important for video calls, sending large files, and gaming.</p></div>
+                    </div>
+                    <div class="accordion-item">
+                        <div class="accordion-header"><span>What is Ping?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                        <div class="accordion-content"><p>Ping (or latency) is the reaction time of your connection—how quickly your device gets a response after you've sent out a request. A fast ping means a more responsive connection.</p></div>
+                    </div>
+                    <div class="accordion-item">
+                        <div class="accordion-header"><span>What is Jitter?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                        <div class="accordion-content"><p>Jitter is the variation in ping over time. High jitter means your ping is fluctuating, which can cause stuttering in voice or video calls and lag in games.</p></div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -520,6 +568,7 @@
                                 <tr><td>Viewport Dimensions</td><td id="sr-viewport">--</td></tr>
                                 <tr><td>Device Pixel Ratio</td><td id="sr-dpr">--</td></tr>
                                 <tr><td>Color Depth</td><td id="sr-color">--</td></tr>
+                                <tr><td>Refresh Rate</td><td id="sr-refresh">Detecting…</td></tr>
                                 <tr><td>Orientation</td><td id="sr-orientation">--</td></tr>
                             </tbody>
                         </table>
@@ -536,19 +585,499 @@
                     </div>
                 </div>
             </div>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: HISTORY
+             ========================================== -->
+        <div id="view-history" class="view-section" hidden>
+            <section class="hero-text text-center" style="margin-bottom:2rem;">
+                <h1>Test <span class="text-accent">History</span>.</h1>
+                <p>Speed-test records saved locally on this browser.</p>
+            </section>
+
+            <div class="tool-card-wrap">
+                <div class="history-bar">
+                    <div>
+                        <span id="history-count" style="font-weight:600; color:var(--text-primary);">0 saved tests</span>
+                        <span class="text-muted" style="font-size:0.8rem; margin-left:0.5rem;">(Stored privately in localStorage)</span>
+                    </div>
+                    <div class="history-actions">
+                        <button id="btn-export-history" class="btn-secondary" title="Export as CSV">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export CSV
+                        </button>
+                        <button id="btn-clear-history" class="btn-secondary" title="Clear all records">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <div class="details-card" style="overflow-x:auto;">
+                    <table class="data-table" id="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th style="text-align:right;">Download</th>
+                                <th style="text-align:right;">Upload</th>
+                                <th style="text-align:right;">Ping</th>
+                                <th style="text-align:right;">Jitter</th>
+                                <th style="text-align:center;">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            <!-- Populated dynamically by script.js -->
+                        </tbody>
+                    </table>
+                    <div id="history-empty" class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                        <p>No tests recorded yet.</p>
+                        <p style="font-size:0.85rem;" class="mt-2"><a href="#/" class="text-accent" style="text-decoration:underline;">Run a speed test</a> to start tracking your connection history!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: PING & JITTER TEST TOOL
+             ========================================== -->
+        <div id="view-ping-test" class="view-section" hidden>
+            <section class="hero-text text-center" style="margin-bottom:2rem;">
+                <h1>Continuous <span class="text-accent">Ping Test</span>.</h1>
+                <p>Live latency and jitter diagnostic monitoring to the speed-test server.</p>
+            </section>
+
+            <div class="tool-card-wrap">
+                <div class="tool-card text-center">
+                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5" class="mb-2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <h2 style="font-size:3.5rem; font-family:var(--font-display); line-height:1;" id="pt-current-ping">--</h2>
+                    <span class="speed-unit">Current Ping (ms)</span>
+
+                    <div class="ping-stats-grid">
+                        <div class="metric-card">
+                            <span class="metric-lbl">Minimum</span>
+                            <div class="metric-val-row"><span class="metric-val" id="pt-min-ping">--</span><span class="metric-unit">ms</span></div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-lbl">Average</span>
+                            <div class="metric-val-row"><span class="metric-val" id="pt-avg-ping">--</span><span class="metric-unit">ms</span></div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-lbl">Maximum</span>
+                            <div class="metric-val-row"><span class="metric-val" id="pt-max-ping">--</span><span class="metric-unit">ms</span></div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-lbl">Jitter</span>
+                            <div class="metric-val-row"><span class="metric-val" id="pt-jitter">--</span><span class="metric-unit">ms</span></div>
+                        </div>
+                    </div>
+
+                    <div class="action-zone mt-4">
+                        <button id="btn-ping-toggle" class="primary-btn">Start Ping Monitor</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: IP & CONNECTION INFO TOOL
+             ========================================== -->
+        <div id="view-ip-info" class="view-section" hidden>
+            <section class="hero-text text-center" style="margin-bottom:2rem;">
+                <h1>IP & <span class="text-accent">Connection Info</span>.</h1>
+                <p>Detect your public IP address, Internet Service Provider, and approximate location.</p>
+            </section>
+
+            <div class="tool-card-wrap">
+                <div class="tool-card text-center">
+                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--color-cyan)" stroke-width="1.5" class="mb-2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    <h2 style="font-size:2.5rem; font-family:var(--font-display); line-height:1.2; word-break:break-all;" id="ip-display">Detecting…</h2>
+                    <p class="text-muted mt-2">Public IPv4 / IPv6 Address</p>
+
+                    <button id="btn-copy-ip" class="btn-secondary mt-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        Copy IP Address
+                    </button>
+                </div>
+
+                <div class="details-card mt-4">
+                    <h3>Connection Details</h3>
+                    <table class="data-table">
+                        <tbody>
+                            <tr><td>Internet Service Provider (ISP)</td><td id="ip-isp">Detecting…</td></tr>
+                            <tr><td>City / Region</td><td id="ip-city">Detecting…</td></tr>
+                            <tr><td>Country</td><td id="ip-country">Detecting…</td></tr>
+                            <tr><td>Autonomous System (ASN)</td><td id="ip-asn">Detecting…</td></tr>
+                            <tr><td>Privacy Status</td><td><span class="rating-badge good">Never Stored</span></td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-muted mt-2" style="font-size:0.8rem;">* Geolocation is approximate and estimated based on public IP routing tables.</p>
+                </div>
+            </div>
+
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: LEARN / SPEED GUIDE
+             ========================================== -->
+        <div id="view-learn-speed" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>What is Internet Speed?</h1>
+                    <p class="article-meta">A comprehensive guide to bandwidth, throughput, and connection speed.</p>
+                </header>
+                <div class="article-body">
+                    <p>When you subscribe to an internet plan, your provider advertises a number like "100 Mbps" or "1 Gbps". But what does that number actually measure, and why does your internet sometimes feel slow even on a fast plan?</p>
+                    
+                    <h2>Bandwidth vs. Throughput</h2>
+                    <p>To understand internet speed, it helps to imagine a highway. <strong>Bandwidth</strong> is how many lanes the highway has — the theoretical maximum amount of data that can travel at once. <strong>Throughput</strong> is how many cars actually make it to their destination without getting stuck in traffic. SpeedPaw measures your actual throughput.</p>
+
+                    <h2>Megabits per Second (Mbps) vs. Megabytes per Second (MB/s)</h2>
+                    <p>A common source of confusion is the difference between <strong>bits</strong> (lowercase <code>b</code>) and <strong>bytes</strong> (uppercase <code>B</code>):</p>
+                    <ul>
+                        <li><strong>1 Byte = 8 bits</strong>.</li>
+                        <li>Network speeds are measured in <strong>Megabits per second (Mbps)</strong>.</li>
+                        <li>File sizes on your computer or phone are measured in <strong>Megabytes (MB)</strong> or <strong>Gigabytes (GB)</strong>.</li>
+                    </ul>
+                    <div class="callout-box">
+                        <p><strong>Quick Rule of Thumb:</strong> To estimate download times, divide your connection speed in Mbps by 8. For example, a 100 Mbps connection transfers roughly 12.5 Megabytes per second in ideal conditions.</p>
+                    </div>
+
+                    <h2>Download vs. Upload: Why is Upload Slower?</h2>
+                    <p>Most residential internet connections (cable, DSL, and some fiber) are <em>asymmetric</em>. They allocate far more bandwidth to download than upload because typical internet usage involves consuming media (streaming, browsing, gaming) rather than hosting servers or uploading giant archives.</p>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: LEARN / PING & JITTER
+             ========================================== -->
+        <div id="view-learn-ping" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>What is Ping & Jitter?</h1>
+                    <p class="article-meta">Why latency and packet stability matter more than raw speed for gaming and video calls.</p>
+                </header>
+                <div class="article-body">
+                    <p>While download and upload speed determine how fast large files transfer, <strong>ping</strong> and <strong>jitter</strong> determine how responsive your internet feels in real-time interactions.</p>
+
+                    <h2>What is Ping (Latency)?</h2>
+                    <p><strong>Ping</strong> measures latency: the round-trip time in milliseconds (ms) for a signal to leave your device, reach the speed-test server, and return. Lower ping is always better.</p>
+                    <ul>
+                        <li><strong>&lt; 20 ms:</strong> Excellent (ideal for competitive esports and instant web response).</li>
+                        <li><strong>20 – 50 ms:</strong> Good (seamless for video calls, gaming, and 4K media).</li>
+                        <li><strong>50 – 100 ms:</strong> Acceptable (slight delay in fast-paced multiplayer games).</li>
+                        <li><strong>&gt; 100 ms:</strong> High latency (noticeable delay in video calls and gaming).</li>
+                    </ul>
+
+                    <h2>What is Jitter?</h2>
+                    <p><strong>Jitter</strong> is the variation or inconsistency in ping over time. If one packet takes 20 ms and the next takes 90 ms, your jitter is high. High jitter causes stuttering audio in Zoom or Discord and "rubberbanding" in online games.</p>
+                    <div class="callout-box">
+                        <p><strong>Tip:</strong> An unstable 500 Mbps Wi-Fi connection with 40 ms jitter can feel far worse than a stable 50 Mbps wired Ethernet cable with 2 ms jitter!</p>
+                    </div>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: LEARN / GOOD SPEED GUIDE
+             ========================================== -->
+        <div id="view-learn-good" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>What is a Good Internet Speed?</h1>
+                    <p class="article-meta">Recommended speeds for households, streaming, gaming, and remote work.</p>
+                </header>
+                <div class="article-body">
+                    <p>The ideal internet speed depends on how many people use your connection and what activities you do simultaneously.</p>
+                    
+                    <h2>Speed by Activity (Per Device)</h2>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Activity</th><th style="text-align:right;">Minimum Download</th><th style="text-align:right;">Recommended Upload</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Web Browsing & Email</td><td>5 Mbps</td><td>1 Mbps</td></tr>
+                            <tr><td>HD Video Streaming (1080p)</td><td>5 – 10 Mbps</td><td>1 Mbps</td></tr>
+                            <tr><td>4K Ultra HD Streaming</td><td>25 Mbps</td><td>3 Mbps</td></tr>
+                            <tr><td>HD Video Conferencing (Zoom/Teams)</td><td>10 Mbps</td><td>5 Mbps</td></tr>
+                            <tr><td>Online Competitive Gaming</td><td>15 Mbps</td><td>5 Mbps (Low Ping &lt;30ms)</td></tr>
+                            <tr><td>Large File Uploads / Cloud Backup</td><td>50+ Mbps</td><td>20+ Mbps</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Household Sizing Recommendations</h2>
+                    <ul>
+                        <li><strong>1–2 People (Light usage):</strong> 25 – 50 Mbps.</li>
+                        <li><strong>2–3 People (Streaming & remote work):</strong> 100 – 200 Mbps.</li>
+                        <li><strong>4+ People or Smart Home (Multiple 4K streams & gaming):</strong> 300 – 500+ Mbps.</li>
+                    </ul>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: LEARN / WI-FI GUIDE
+             ========================================== -->
+        <div id="view-learn-wifi" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>Wi-Fi Optimization & Troubleshooting</h1>
+                    <p class="article-meta">How to get the maximum speed out of your wireless home network.</p>
+                </header>
+                <div class="article-body">
+                    <p>In most homes, the bottleneck is not the internet plan from the ISP — it's the Wi-Fi signal between your router and device.</p>
+
+                    <h2>2.4 GHz vs. 5 GHz vs. 6 GHz (Wi-Fi 6E/7)</h2>
+                    <ul>
+                        <li><strong>2.4 GHz:</strong> Long range and penetrates thick walls easily, but maximum speeds are limited (often 30–60 Mbps in practice) and vulnerable to microwave/Bluetooth interference.</li>
+                        <li><strong>5 GHz:</strong> Much faster speeds (often 300–600+ Mbps) and lower latency, but shorter range and struggles through concrete or brick walls.</li>
+                        <li><strong>6 GHz (Wi-Fi 6E/7):</strong> Ultra-fast, pristine spectrum with zero legacy interference, ideal for gigabit connections in the same room.</li>
+                    </ul>
+
+                    <h2>5 Proven Steps to Boost Wi-Fi Speed</h2>
+                    <ol>
+                        <li><strong>Elevate Your Router:</strong> Place the router on a shelf or desk in an open central location, not inside a metal cabinet or on the floor.</li>
+                        <li><strong>Switch to 5 GHz:</strong> Connect your primary laptop, smart TV, or console to the 5 GHz band.</li>
+                        <li><strong>Avoid Physical Obstacles:</strong> Keep the router away from large mirrors, brick walls, microwaves, and cordless phones.</li>
+                        <li><strong>Restart the Router Monthly:</strong> Clears device routing tables and memory leaks.</li>
+                        <li><strong>Use Ethernet for Heavy Devices:</strong> A Cat6 Ethernet cable eliminates Wi-Fi jitter completely for gaming and desktop workstations.</li>
+                    </ol>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: LEARN / SLOW INTERNET
+             ========================================== -->
+        <div id="view-learn-slow" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>Why is My Internet Slow?</h1>
+                    <p class="article-meta">A step-by-step checklist to diagnose and fix sluggish internet speeds.</p>
+                </header>
+                <div class="article-body">
+                    <p>If SpeedPaw shows results significantly lower than your subscribed plan, walk through this quick checklist to find the culprit.</p>
+
+                    <h2>1. Check for Background Downloads</h2>
+                    <p>Cloud backups (OneDrive, Google Drive, iCloud), game updates (Steam, PlayStation, Xbox), and Windows updates often saturate upload or download bandwidth silently in the background.</p>
+
+                    <h2>2. Test with a Wired Ethernet Cable</h2>
+                    <p>To determine if the issue is your Wi-Fi or your ISP line, connect your computer directly to the router via Ethernet and run SpeedPaw. If the speed jumps to your plan's rating, your Wi-Fi configuration is the issue.</p>
+
+                    <h2>3. Check for Peak-Hour Congestion</h2>
+                    <p>Between 7 PM and 11 PM, neighborhood cable and broadband lines experience peak demand. If speeds drop consistently every evening, your ISP's local node may be oversubscribed.</p>
+
+                    <h2>4. Inspect Router Age and Cables</h2>
+                    <p>Old routers or damaged Ethernet cables (e.g. an old Cat5 cable negotiation capped at 100 Mbps instead of 1 Gbps) can silently cap your entire home network speed.</p>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: LEARN / FAQ
+             ========================================== -->
+        <div id="view-learn-faq" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>Frequently Asked Questions</h1>
+                    <p class="article-meta">Common questions about SpeedPaw and internet speed testing.</p>
+                </header>
+                <div class="article-body">
+                    <div class="faq-list">
+                        <details class="faq-item" open>
+                            <summary class="faq-summary">How does SpeedPaw measure internet speed?</summary>
+                            <div class="faq-content">
+                                <p>SpeedPaw performs genuine network measurements directly between your browser and our dedicated speed-test server. It pings the server for round-trip latency, downloads non-compressible binary data to calculate real download Mbps, and streams test payload bytes to measure real upload Mbps. No mock values are ever generated.</p>
+                            </div>
+                        </details>
+                        <details class="faq-item">
+                            <summary class="faq-summary">Why does my speed test result differ from other tests?</summary>
+                            <div class="faq-content">
+                                <p>Speed tests measure the throughput between your device and a specific server. Factors like physical distance to the server, server load, Wi-Fi interference, and current device background activity will cause slight differences across different testing platforms.</p>
+                            </div>
+                        </details>
+                        <details class="faq-item">
+                            <summary class="faq-summary">Does SpeedPaw store my personal data or IP address?</summary>
+                            <div class="faq-content">
+                                <p>No. SpeedPaw is built privacy-first. We do not store your IP address or test results on any server database. Your test history is stored exclusively inside your own browser's local storage (localStorage) and never leaves your device.</p>
+                            </div>
+                        </details>
+                        <details class="faq-item">
+                            <summary class="faq-summary">Why is my Wi-Fi speed slower than my wired speed?</summary>
+                            <div class="faq-content">
+                                <p>Wi-Fi signals suffer from atmospheric attenuation, physical obstacles (walls, doors), and radio interference from neighboring networks. An Ethernet cable provides a direct electrical connection with minimal packet loss and zero radio interference.</p>
+                            </div>
+                        </details>
+                        <details class="faq-item">
+                            <summary class="faq-summary">What is the robot cat mascot?</summary>
+                            <div class="faq-content">
+                                <p>That's Paw-E, SpeedPaw's friendly robot cat mascot! Paw-E reacts in real time to your network states (curious during server search, alert during ping, and celebrating when your connection is blazing fast).</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: ABOUT
+             ========================================== -->
+        <div id="view-about" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>About SpeedPaw</h1>
+                    <p class="article-meta">Know your internet — transparent, friendly, and private.</p>
+                </header>
+                <div class="article-body">
+                    <p>SpeedPaw was created with a simple vision: to make network diagnostics fast, delightful, completely transparent, and respectful of user privacy.</p>
+                    <h2>Our Principles</h2>
+                    <ul>
+                        <li><strong>Honest Measurements:</strong> We measure actual transferred bytes and real elapsed milliseconds. No inflated numbers, no fake simulation.</li>
+                        <li><strong>Zero Account Hassle:</strong> No registration, no login, no passwords, no email collection.</li>
+                        <li><strong>Privacy by Architecture:</strong> Test history lives in your browser's local storage, not in an advertising tracking database.</li>
+                        <li><strong>Lightweight & Clean:</strong> Fast initial load, responsive mobile design, and accessible controls.</li>
+                    </ul>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: PRIVACY POLICY
+             ========================================== -->
+        <div id="view-privacy" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>Privacy Policy</h1>
+                    <p class="article-meta">Effective Date: 2026. Last Updated: September 2026.</p>
+                </header>
+                <div class="article-body">
+                    <p>SpeedPaw values your privacy. This policy outlines how information is handled when you use SpeedPaw.</p>
+                    <h2>1. Information We Do Not Collect</h2>
+                    <p>SpeedPaw does not require accounts, usernames, or passwords. We do not permanently store your test results or personal profile in any database.</p>
+                    <h2>2. Speed Test Measurements</h2>
+                    <p>When you conduct a speed test, test bytes are transferred between your browser and our test server to measure throughput. Uploaded test data is held only in volatile memory long enough to tally the byte count and is immediately discarded without being written to persistent storage.</p>
+                    <h2>3. Local Storage</h2>
+                    <p>Your previous speed test results are saved locally in your browser's <code>localStorage</code> so you can view your personal test history. This data remains on your device and is never sent to our servers. You can clear it at any time with the "Clear All" button.</p>
+                    <h2>4. IP Addresses</h2>
+                    <p>Your public IP address is used temporarily by the network layer to transmit packets. We do not maintain logs linking IP addresses to individuals.</p>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: TERMS OF SERVICE
+             ========================================== -->
+        <div id="view-terms" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>Terms of Service</h1>
+                    <p class="article-meta">Effective Date: September 2026.</p>
+                </header>
+                <div class="article-body">
+                    <p>By using SpeedPaw, you agree to these simple terms:</p>
+                    <h2>1. Permitted Use</h2>
+                    <p>SpeedPaw is provided free of charge for personal and non-commercial network testing. You agree not to abuse the test infrastructure via denial-of-service attacks or automated scraping.</p>
+                    <h2>2. Accuracy of Estimates</h2>
+                    <p>SpeedPaw provides real throughput measurements and informational quality suitability estimates. Real-world performance on specific streaming or gaming platforms may vary due to third-party routing and server conditions.</p>
+                    <h2>3. Disclaimer of Warranties</h2>
+                    <p>The service is provided "as-is" without warranty of any kind, express or implied.</p>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
+        </div>
+
+        <!-- ==========================================
+             VIEW: CONTACT
+             ========================================== -->
+        <div id="view-contact" class="view-section" hidden>
+            <article class="article-container">
+                <header class="article-header">
+                    <h1>Contact SpeedPaw</h1>
+                    <p class="article-meta">Have questions, feedback, or server partnership inquiries?</p>
+                </header>
+                <div class="article-body">
+                    <p>We welcome your questions, bug reports, and suggestions for improving SpeedPaw.</p>
+                    <div class="details-card mt-2">
+                        <h3>Get in Touch</h3>
+                        <p>For general inquiries or feedback regarding SpeedPaw:</p>
+                        <p><strong>Email:</strong> <span class="text-accent">contact@speedpaw.com</span></p>
+                        <p class="text-muted" style="font-size:0.85rem;">We typically reply within 1–2 business days.</p>
+                    </div>
+                </div>
+            </article>
+            <div class="ad-space ad-728 desktop-only mt-4"><span>ADVERTISEMENT<br>728 x 90</span></div>
         </div>
 
     </main>
 
     <!-- ─── FOOTER ─────────────────────────────────────────────────── -->
     <footer class="footer mt-4">
-        <span class="footer-brand">SpeedPaw</span>
-        <span class="footer-sep">·</span>
-        <span class="footer-note">Results are simulated. v0.2 architecture.</span>
-        <span class="footer-sep">·</span>
-        <span class="footer-copy">© 2026</span>
+        <div class="footer-links-grid">
+            <div class="footer-col">
+                <h5>Tools</h5>
+                <ul>
+                    <li><a href="#/">Internet Speed Test</a></li>
+                    <li><a href="#/video-test">Video Quality Test</a></li>
+                    <li><a href="#/screen-res">Screen Resolution</a></li>
+                    <li><a href="#/ping-test">Ping & Jitter Test</a></li>
+                    <li><a href="#/ip-info">IP & Connection Info</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h5>Learn</h5>
+                <ul>
+                    <li><a href="#/learn/speed-guide">Internet Speed Guide</a></li>
+                    <li><a href="#/learn/ping-jitter">What is Ping & Jitter?</a></li>
+                    <li><a href="#/learn/good-speed">What is Good Speed?</a></li>
+                    <li><a href="#/learn/wifi-guide">Wi-Fi Troubleshooting</a></li>
+                    <li><a href="#/learn/slow-internet">Why is Internet Slow?</a></li>
+                    <li><a href="#/learn/faq">FAQ</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h5>SpeedPaw</h5>
+                <ul>
+                    <li><a href="#/history">Test History</a></li>
+                    <li><a href="#/about">About Us</a></li>
+                    <li><a href="#/contact">Contact</a></li>
+                    <li><a href="#/privacy">Privacy Policy</a></li>
+                    <li><a href="#/terms">Terms of Service</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h5>About SpeedPaw</h5>
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.5;">
+                    SpeedPaw is a free, privacy-first network diagnostic tool measuring download, upload, latency, and jitter directly from your browser.
+                </p>
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border); padding-top: 1.25rem;">
+            <span class="footer-brand">SpeedPaw</span>
+            <span class="footer-sep">·</span>
+            <span class="footer-note">Genuine network speed testing. Privacy-first local history.</span>
+            <span class="footer-sep">·</span>
+            <span class="footer-copy">© 2026 SpeedPaw</span>
+        </div>
     </footer>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
