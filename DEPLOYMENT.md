@@ -1,9 +1,9 @@
-# SpeedPaw Production Deployment Guide
+# SpeedPaw Production Deployment & Hardening Guide
 
-This guide provides instructions for deploying SpeedPaw to production with a **₹0/month budget** within free-tier limits:
+This document contains step-by-step instructions to deploy and production-harden **SpeedPaw** on the target production infrastructure architecture:
 
-- **Frontend**: Hosted globally on **Cloudflare Pages** (Free, Unlimited Bandwidth, Global CDN, SSL)
-- **Speed-Test Backend**: Hosted on a dedicated **Oracle Cloud Always Free VM** (10 TB/month outbound bandwidth, low latency, dedicated compute)
+- **Frontend**: Hosted on **Cloudflare Pages** (Free, Unlimited Bandwidth, Global CDN, SSL)
+- **Speed-Test Backend**: Hosted on an **AWS EC2 Linux Instance** in **ap-south-2 (Hyderabad, India)** (AWS Free Tier / cloud credits eligible)
 
 ```
                        ┌────────────────────────────────┐
@@ -15,115 +15,122 @@ This guide provides instructions for deploying SpeedPaw to production with a **�
                                        │
                                        ▼
                        ┌────────────────────────────────┐
-                       │  Oracle Cloud Always Free VM   │
+                       │        AWS EC2 Instance        │
                        │    (test.speedpaw.com backend) │
-                       │    Nginx + Node.js (systemd)   │
+                       │    Caddy/Nginx + Express Node  │
                        └────────────────────────────────┘
 ```
 
 ---
 
-## 1. Oracle Cloud Always Free VM Setup
+## 1. Architecture Overview
 
-### Recommended Free Tier Instance Options:
-1. **Ampere A1 (Arm)**: 1–4 OCPUs, 6–24 GB RAM (Ubuntu 22.04 or 24.04 Arm64 / Oracle Linux 9) — **Recommended**
-2. **AMD E2.1.Micro (x86)**: 1 OCPU, 1 GB RAM (Ubuntu 22.04 LTS / Oracle Linux 9)
+To ensure speed measurements are accurate and unthrottled, high-bandwidth download (25 MB+) and upload (8 MB+) test streams are **transferred directly between the user's browser and the dedicated AWS EC2 backend**.
 
-### A. Create Compute Instance
-1. In Oracle Cloud Console: **Compute** → **Instances** → **Create Instance**.
-2. Select Image: **Canonical Ubuntu 22.04** (or Oracle Linux 9).
-3. Select Shape: **Always Free Eligible** (Ampere A1 or VM.Standard.E2.1.Micro).
-4. Save your **SSH Private Key** to your computer.
-5. Click **Create** and wait for the public IP address to be assigned.
-
-### B. Configure Oracle Cloud VCN Security List (Ingress Firewall)
-1. Go to **Networking** → **Virtual Cloud Networks** → Select your VCN → **Security Lists** → **Default Security List**.
-2. Click **Add Ingress Rules**:
-   - **Source CIDR**: `0.0.0.0/0`
-   - **IP Protocol**: `TCP`
-   - **Destination Port Range**: `80, 443`
-   - **Description**: `HTTP and HTTPS for SpeedPaw speed-test server`
-3. Save rule.
+> [!IMPORTANT]
+> Download/Upload traffic must **NOT** be proxied through Cloudflare Workers or Cloudflare CDN proxy ("Orange Cloud"), as CDN edge buffering and connection limits will skew bandwidth calculations.
 
 ---
 
-## 2. Server Setup & Linux Configuration
+## 2. AWS EC2 Instance Setup (Hyderabad, India / ap-south-2)
 
-Connect to your Oracle VM via SSH:
+### Cost & Free Tier Considerations:
+AWS offers Free Tier benefits (such as 750 hours per month for eligible micro instances like `t4g.micro` or `t3.micro` for 12 months for new accounts) or promotional cloud credits. Ensure you monitor your AWS usage and data transfer costs according to your AWS account tier.
+
+### Recommended Instance Types:
+1. **t4g.micro (Arm64)**: 2 vCPUs, 1 GB RAM (Ubuntu 24.04 / 22.04 LTS Arm64) — **Recommended**
+2. **t3.micro / t2.micro (x86_64)**: 2 vCPUs, 1 GB RAM (Ubuntu 24.04 / 22.04 LTS x86_64)
+
+### A. Launch EC2 Instance
+1. Log in to [AWS Management Console](https://aws.amazon.com/console/).
+2. Select Region: **Asia Pacific (Hyderabad) `ap-south-2`**.
+3. Navigate to **EC2** → **Launch Instance**.
+4. Image (AMI): **Ubuntu Server 24.04 LTS** (or 22.04 LTS).
+5. Instance Type: Select **`t4g.micro`** or **`t3.micro`** (or your preferred micro shape).
+6. Key Pair: Select or create an SSH key pair (`chmod 600 id_rsa`).
+7. Click **Launch Instance** and allocate/associate an Elastic IP (or note the assigned Public IPv4 address).
+
+### B. Configure AWS Security Group (Cloud Firewall)
+1. Under **Network settings** / **Security Groups**, select your Security Group and edit **Inbound Rules**:
+   - **SSH**: Type `SSH`, Port `22`, Source `0.0.0.0/0` (or your specific IP)
+   - **HTTP**: Type `HTTP`, Port `80`, Source `0.0.0.0/0`
+   - **HTTPS**: Type `HTTPS`, Port `443`, Source `0.0.0.0/0`
+   - **Description**: `HTTP and HTTPS for SpeedPaw Backend`
+2. Save rules.
+
+---
+
+## 3. Server Setup & Linux Configuration
+
+SSH into your AWS EC2 instance:
 ```bash
-ssh -i /path/to/your-private-key.key ubuntu@<YOUR_ORACLE_VM_IP>
+ssh -i /path/to/private_key ubuntu@<YOUR_AWS_EC2_PUBLIC_IP>
 ```
 
-### A. Update Linux and Configure OS Firewall
+### A. OS Updates & Local Firewall
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y ufw curl git nginx certbot python3-certbot-nginx
+sudo apt install -y ufw curl git build-essential
 
-# Open firewall ports
-sudo ufw allow 22/tcp
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+# Open essential firewall ports
+sudo ufw allow 22/tcp   # SSH
+sudo ufw allow 80/tcp   # HTTP
+sudo ufw allow 443/tcp  # HTTPS
 sudo ufw --force enable
 ```
 
-*(Note for Oracle Linux users: use `firewall-cmd --permanent --add-port=80/tcp --add-port=443/tcp && firewall-cmd --reload`)*
-
-### B. Install Node.js LTS
+### B. Install Node.js 20 LTS
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
-node -v # Should display v20.x or higher
+node -v # Verify v20.x is displayed
+npm -v
 ```
 
 ---
 
-## 3. SpeedPaw Backend Installation
+## 4. SpeedPaw Backend Installation
 
-### A. Copy Backend Code to Server
-Clone your repository or copy the `server/` directory to `/opt/speedpaw-server`:
-
+### A. Deploy Backend Code
 ```bash
-sudo mkdir -p /opt/speedpaw-server
-sudo chown -R ubuntu:ubuntu /opt/speedpaw-server
-
-# If using git:
-git clone https://github.com/your-username/Speedpaw.git /tmp/speedpaw-repo
-cp -r /tmp/speedpaw-repo/server/* /opt/speedpaw-server/
-rm -rf /tmp/speedpaw-repo
+# Clone repository into home directory
+cd /home/ubuntu
+git clone https://github.com/your-username/Speedpaw.git
 
 # Install production dependencies
-cd /opt/speedpaw-server
+cd /home/ubuntu/Speedpaw/server
 npm install --omit=dev
 ```
 
-### B. Create Production Environment Configuration
-Create `/opt/speedpaw-server/.env`:
+### B. Configure Production Environment Variables
+Create `/home/ubuntu/Speedpaw/server/.env`:
 ```bash
-cat << 'EOF' > /opt/speedpaw-server/.env
+cat << 'EOF' > /home/ubuntu/Speedpaw/server/.env
 PORT=3001
-ALLOWED_ORIGINS=https://speedpaw.com,https://www.speedpaw.com,https://*.pages.dev
-SERVER_NAME=SpeedPaw Frankfurt Primary
-SERVER_LOCATION=Frankfurt, Germany
-SERVER_REGION=eu-central-1
+NODE_ENV=production
+ALLOWED_ORIGINS=https://speedpaw.pages.dev
+SERVER_NAME=SpeedPaw AWS Hyderabad Node 1
+SERVER_LOCATION=Hyderabad, India
+SERVER_REGION=ap-south-2
 EOF
 ```
 
 ---
 
-## 4. Set Up systemd Service (Auto-Start on Boot)
+## 5. Systemd Process Manager Setup
 
-Create `/etc/systemd/system/speedpaw.service`:
+Create `/etc/systemd/system/speedpaw-backend.service`:
 ```bash
-sudo tee /etc/systemd/system/speedpaw.service > /dev/null << 'EOF'
+sudo tee /etc/systemd/system/speedpaw-backend.service > /dev/null << 'EOF'
 [Unit]
-Description=SpeedPaw Speed-Test Backend Service
+Description=SpeedPaw Real Speed-Test Express Backend
 After=network.target
 
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/opt/speedpaw-server
-EnvironmentFile=/opt/speedpaw-server/.env
+WorkingDirectory=/home/ubuntu/Speedpaw/server
+EnvironmentFile=/home/ubuntu/Speedpaw/server/.env
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
@@ -137,97 +144,102 @@ EOF
 Enable and start the service:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable speedpaw
-sudo systemctl start speedpaw
-sudo systemctl status speedpaw
+sudo systemctl enable speedpaw-backend
+sudo systemctl start speedpaw-backend
+
+# Check status and logs
+sudo systemctl status speedpaw-backend
+sudo journalctl -u speedpaw-backend -n 50 --no-pager
 ```
 
 ---
 
-## 5. Domain & HTTPS Setup (Nginx + Let's Encrypt)
+## 6. Reverse Proxy & HTTPS Evaluation
 
-### A. DNS Configuration
-In your DNS provider (e.g. Cloudflare or domain registrar), create an `A` record:
-- **Type**: `A`
-- **Name**: `test` (for `test.speedpaw.com`)
-- **Value**: `<YOUR_ORACLE_VM_PUBLIC_IP>`
-- **Proxy Status**: **DNS Only** (Grey Cloud if using Cloudflare DNS — speed tests transfer high data volumes which Cloudflare CDN proxies may throttle or cache).
+### Reverse Proxy Comparison: Caddy vs. Nginx
 
-### B. Nginx Reverse Proxy Configuration
-Create `/etc/nginx/sites-available/speedpaw`:
+| Feature | Caddy (Recommended) | Nginx |
+| :--- | :--- | :--- |
+| **HTTPS Setup** | **Automatic** (Built-in ACME Let's Encrypt renewal) | Manual (`certbot` + cron job setup) |
+| **Streaming / Buffering** | Unbuffered streaming by default (`flush_interval -1`) | Requires explicit `proxy_buffering off;` & `proxy_request_buffering off;` |
+| **Config Complexity** | Minimal (10 lines Caddyfile) | Moderate (Requires custom timeouts and body limits) |
+| **HTTP/2 & HTTP/3** | Supported out of the box | Supported with extra configuration |
+
+### Option 1: Caddy Installation (Recommended)
 ```bash
-sudo tee /etc/nginx/sites-available/speedpaw > /dev/null << 'EOF'
-server {
-    listen 80;
-    server_name test.speedpaw.com;
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install caddy
+```
 
-    # Maximum allowed request body for upload testing (100MB)
-    client_max_body_size 100M;
-    client_body_buffer_size 128k;
+Copy `Caddyfile.example` to `/etc/caddy/Caddyfile`:
+```bash
+sudo cp /home/ubuntu/Speedpaw/Caddyfile.example /etc/caddy/Caddyfile
+# Replace speedtest-server-domain with your actual domain (e.g., test.speedpaw.com)
+```
 
-    # Disable buffering for real-time speed measurement
-    proxy_buffering off;
-    proxy_request_buffering off;
-    proxy_read_timeout 120s;
-    proxy_send_timeout 120s;
+Apply Caddy configuration:
+```bash
+sudo systemctl reload caddy
+```
 
-    # Disable gzip/brotli compression so raw bytes are accurately measured
-    gzip off;
+### Option 2: Nginx Alternative
+If you prefer Nginx:
+```bash
+sudo apt install -y nginx certbot python3-certbot-nginx
+```
 
-    location / {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-EOF
-
+Copy `nginx.conf.example` to `/etc/nginx/sites-available/speedpaw`:
+```bash
+sudo cp /home/ubuntu/Speedpaw/nginx.conf.example /etc/nginx/sites-available/speedpaw
+# Replace speedtest-server-domain with test.speedpaw.com in file
+sudo sed -i 's/speedtest-server-domain/test.speedpaw.com/g' /etc/nginx/sites-available/speedpaw
 sudo ln -s /etc/nginx/sites-available/speedpaw /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
-```
 
-### C. Issue Free Let's Encrypt SSL Certificate
-```bash
+# Issue HTTPS SSL Certificate
 sudo certbot --nginx -d test.speedpaw.com --non-interactive --agree-tos -m admin@speedpaw.com
 ```
-Certbot automatically configures HTTPS and sets up auto-renewal cron jobs.
 
 ---
 
-## 6. Cloudflare Pages Frontend Deployment
+## 7. DNS Configuration
 
-### A. Push Code to GitHub
-Ensure your repository is pushed to GitHub.
+In your DNS Provider (Cloudflare DNS or Domain Registrar):
+- **Record Type**: `A`
+- **Name**: `test` (for `test.speedpaw.com`)
+- **IP Address**: `<YOUR_AWS_EC2_PUBLIC_IP>`
+- **Proxy Status**: **DNS Only (Grey Cloud)** — *Crucial: High-throughput speed testing must bypass Cloudflare Workers / CDN proxy to avoid bandwidth throttling and edge buffering.*
 
-### B. Connect Cloudflare Pages
+---
+
+## 8. Cloudflare Pages Frontend Deployment
+
 1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **Create application** → **Pages** → **Connect to Git**.
-2. Select the `Speedpaw` repository.
+2. Select your `Speedpaw` repository.
 3. Configure Build Settings:
    - **Framework preset**: `None`
-   - **Build command**: `(leave empty)`
-   - **Build output directory**: `/` (or root)
+   - **Build command**: *(leave empty)*
+   - **Build output directory**: `/` (root)
 4. Click **Save and Deploy**.
-
-### C. Custom Domain on Cloudflare Pages
-1. In Cloudflare Pages project settings, go to **Custom domains** → **Set up a custom domain**.
-2. Enter `speedpaw.com` (and `www.speedpaw.com`).
-3. Follow the one-click DNS activation.
+5. Custom Domain: Add `speedpaw.com` in Pages **Custom Domains** settings.
 
 ---
 
-## 7. Point Frontend to Production Backend
+## 9. Frontend Production Configuration
 
-Before deploying to production, update `config.js` on `main` branch:
+Before public launch, update `config.js` on your repository root (or set `window.SPEEDPAW_OVERRIDE_URL`):
 
 ```javascript
 window.SPEEDPAW_CONFIG = {
-  // Point to your production Oracle VM endpoint:
-  backendUrl: 'https://test.speedpaw.com',
+  // Auto-detects local vs production:
+  backendUrl: window.SPEEDPAW_OVERRIDE_URL || (isLocal
+    ? 'http://localhost:3001'
+    : 'https://test.speedpaw.com'),
 
   pingCount: 10,
   pingWarmup: 2,
@@ -238,34 +250,33 @@ window.SPEEDPAW_CONFIG = {
 };
 ```
 
-Commit and push to trigger an automatic instant deployment on Cloudflare Pages.
+---
+
+## 10. Production Test Checklist
+
+Before opening the site to public users, complete this checklist:
+
+- [ ] **Backend Reachable**: `curl -i https://test.speedpaw.com/api/health` returns `200 OK` and `{"status":"ok"}`.
+- [ ] **HTTPS Working**: Valid SSL certificate issued via Let's Encrypt; HTTP requests automatically redirect to HTTPS.
+- [ ] **CORS Restriction Active**: Cross-origin requests from authorized domains (`https://speedpaw.pages.dev`) succeed; unauthorized origins receive CORS rejection.
+- [ ] **Ping Test**: Latency calculation completes accurately within 10 RTT samples; discarded warmup samples prevent TCP handshake distortion.
+- [ ] **Jitter Calculation**: RFC 3550 mean deviation of consecutive packet delays produces realistic jitter values (ms).
+- [ ] **Download Test**: 3 concurrent streams fetch uncompressible random binary data without proxy buffering skew.
+- [ ] **Upload Test**: Binary octet stream payload uploads via `XMLHttpRequest` with live progress tracking and zero disk writing.
+- [ ] **Repeated Runs**: Successive speed tests run cleanly without state corruption or stalled connections.
+- [ ] **Test Cancellation**: Clicking **Cancel** mid-test instantly aborts all active `fetch` signals and `XMLHttpRequest` streams.
+- [ ] **No Stale UI / Leaks**: Memory remains stable under continuous testing; progress gauges reset cleanly.
+- [ ] **Console Cleanliness**: Zero JavaScript errors or unhandled promise rejections in browser Developer Tools.
+- [ ] **Network Requests Clean**: All test calls complete with `200 OK`; no CORS, mixed-content, or timeout errors.
+- [ ] **Mobile Responsiveness**: Test flow, touch controls, and robot cat mascot animations function seamlessly on iOS and Android devices.
+- [ ] **Desktop Compatibility**: Layout, 3D mascot expressions, and Smart Results render perfectly on Chrome, Firefox, Safari, and Edge.
 
 ---
 
-## 8. Verification & Production Health Checks
+## 11. Technical Accuracy & Benchmarking Warning
 
-### CLI Verification:
-```bash
-# 1. Health check
-curl -i https://test.speedpaw.com/api/health
-
-# 2. Config check
-curl -i https://test.speedpaw.com/api/config
-
-# 3. Ping check
-curl -i https://test.speedpaw.com/api/ping
-
-# 4. Download test (1 MB)
-curl -o /dev/null -w "%{size_download} bytes in %{time_total}s\n" https://test.speedpaw.com/api/download?size=1048576
-
-# 5. Upload test (100 KB test payload)
-head -c 102400 /dev/urandom | curl -X POST -H "Content-Type: application/octet-stream" --data-binary @- https://test.speedpaw.com/api/upload
-```
-
-### Browser Verification:
-1. Open `https://speedpaw.com/`
-2. Click **Start Test** → Verify Ping, Download, Upload phases transition smoothly.
-3. Check robot cat reactions (alert during ping, focused during download/upload, celebration on completion).
-4. Verify **Smart Results** cards display sensible ratings.
-5. Click **Cancel** mid-test → Verify instant abort without errors.
-6. Verify **Video Quality Test**, **Screen Resolution** (with live Hz), and **History** pages.
+> [!WARNING]
+> **Measurement Accuracy Note**:
+> SpeedPaw performs genuine network bandwidth measurements directly within the browser using Web API streams and high-throughput backend endpoints. However, in-browser speed measurements are subject to browser engine limits, device CPU state, Wi-Fi hardware, and background browser extensions.
+>
+> SpeedPaw should **NOT** be claimed to be "more accurate than Ookla Speedtest". Thorough real-world benchmarking against dedicated network hardware nodes across diverse connection speeds (10 Mbps to 1 Gbps) should be conducted after initial deployment to fine-tune stream concurrency and chunk parameters.

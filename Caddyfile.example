@@ -1,0 +1,25 @@
+# SpeedPaw Production Reverse Proxy Configuration (Caddy 2)
+# Replace `speedtest-server-domain` with your actual domain (e.g. test.speedpaw.com)
+
+speedtest-server-domain {
+    # Automatic HTTPS (SSL/TLS via Let's Encrypt / ZeroSSL) is handled natively by Caddy.
+
+    # Enforce maximum upload payload limit (100MB)
+    request_body {
+        max_size 100MB
+    }
+
+    # Reverse proxy to local Express Node.js backend
+    reverse_proxy 127.0.0.1:3001 {
+        # Unbuffered real-time streaming for download/upload measurements
+        flush_interval -1
+    }
+
+    # Security & privacy headers
+    header {
+        -Server
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer-when-downgrade"
+    }
+}

@@ -1,0 +1,29 @@
+# SpeedPaw Production Reverse Proxy Configuration (Nginx)
+# Place in `/etc/nginx/sites-available/speedpaw` and symlink to `/etc/nginx/sites-enabled/`
+
+server {
+    listen 80;
+    server_name speedtest-server-domain; # Replace with your actual backend domain (e.g. test.speedpaw.com)
+
+    # Maximum upload payload size cap (100MB)
+    client_max_body_size 100M;
+    client_body_buffer_size 128k;
+
+    # Disable proxy buffering for real-time bandwidth streaming & backpressure
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+
+    # Disable gzip/brotli compression to preserve raw byte throughput accuracy
+    gzip off;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

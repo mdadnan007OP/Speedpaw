@@ -1,0 +1,16 @@
+[Unit]
+Description=SpeedPaw Real Speed-Test Express Backend
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Speedpaw/server
+EnvironmentFile=/home/ubuntu/Speedpaw/server/.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

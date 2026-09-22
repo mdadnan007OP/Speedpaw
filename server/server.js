@@ -27,23 +27,51 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Configure CORS
-const configuredOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+const configuredOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
   : null;
 
 app.use(cors({
   origin: function (origin, callback) {
-    // If no origin (e.g. mobile app, curl, server-to-server) or in open dev mode
+    // If no origin (e.g. mobile app, curl, health checks, server-to-server)
     if (!origin) return callback(null, true);
 
     if (configuredOrigins && configuredOrigins.length > 0) {
       const isAllowed = configuredOrigins.some(allowed => {
         if (allowed === '*') return true;
-        if (allowed.startsWith('*.')) {
-          const domain = allowed.slice(2);
-          return origin.endsWith(domain);
+        if (allowed === origin) return true;
+
+        if (allowed.includes('*')) {
+          let patternHost = allowed;
+          let patternProtocol = null;
+          if (allowed.startsWith('https://')) {
+            patternProtocol = 'https:';
+            patternHost = allowed.slice(8);
+          } else if (allowed.startsWith('http://')) {
+            patternProtocol = 'http:';
+            patternHost = allowed.slice(7);
+          }
+
+          try {
+            const originUrl = new URL(origin);
+            if (patternProtocol && originUrl.protocol !== patternProtocol) {
+              return false;
+            }
+            if (patternHost.startsWith('*.')) {
+              const domain = patternHost.slice(2);
+              if (originUrl.hostname === domain || originUrl.hostname.endsWith('.' + domain)) {
+                return true;
+              }
+            }
+          } catch (_) {
+            return false;
+          }
+
+          const regexStr = '^' + allowed.split('*').map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$';
+          return new RegExp(regexStr).test(origin);
         }
-        return origin === allowed;
+
+        return false;
       });
       if (isAllowed) return callback(null, true);
       return callback(new Error(`CORS origin ${origin} not permitted`), false);
@@ -61,7 +89,6 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // Permit by default unless strictly configured otherwise in production
     return callback(null, true);
   },
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -98,4 +125,3 @@ app.listen(PORT, () => {
   console.log(`SpeedPaw backend listening on port ${PORT}`);
   console.log(`Configured Origins: ${configuredOrigins ? configuredOrigins.join(', ') : 'Permissive (Dev/Preview)'}`);
 });
-
