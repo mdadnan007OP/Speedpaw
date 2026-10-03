@@ -6,10 +6,10 @@
  * Auto-detects local host vs production deployment, or uses
  * explicit override if set on window.SPEEDPAW_OVERRIDE_URL.
  */
-(function() {
+(function () {
   const isLocal = window.location.hostname === 'localhost' ||
-                  window.location.hostname === '127.0.0.1' ||
-                  window.location.hostname === '';
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '';
 
   window.SPEEDPAW_CONFIG = {
     // ── SERVER ENDPOINT ──────────────────────────────────────
@@ -17,7 +17,7 @@
     // Replace 'https://speedtest-server-domain' with your actual AWS EC2 domain or IP.
     backendUrl: window.SPEEDPAW_OVERRIDE_URL || (isLocal
       ? 'http://localhost:3001'
-      : 'https://speedtest-server-domain'),
+      : 'https://speedpaw-api.duckdns.org'),
 
     // ── SPEED TEST TUNING ────────────────────────────────────
     // Ping measurement
