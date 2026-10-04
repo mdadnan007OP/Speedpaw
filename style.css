@@ -408,8 +408,50 @@ button { background: none; border: none; font-family: inherit; cursor: pointer; 
     font-size: 0.75rem;
     color: var(--text-secondary);
 }
-.meta-row { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
-.meta-row strong { color: var(--text-primary); font-weight: 500; font-family: monospace; }
+.meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+    gap: 0.5rem;
+}
+.meta-row span {
+    flex-shrink: 0;
+}
+.meta-row strong {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-family: monospace;
+    font-size: 0.8rem;
+    /* Allow IPv6 addresses to wrap rather than silently truncate */
+    max-width: 170px;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+    text-align: right;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 1px 4px;
+    transition: background 0.15s ease;
+    line-height: 1.4;
+}
+.meta-row strong:hover {
+    background: rgba(34, 211, 238, 0.1);
+}
+
+.gauge-needle {
+    transform-origin: 150px 150px;
+    pointer-events: none;
+    will-change: transform;
+}
+
+.ip-display-text {
+    font-size: clamp(1.35rem, 3.5vw, 2.25rem);
+    font-family: var(--font-display);
+    line-height: 1.25;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
 
 /* 3D Cat Mascot */
 .cat-wrap {
@@ -786,9 +828,10 @@ button { background: none; border: none; font-family: inherit; cursor: pointer; 
 /* Ensure header is positioned for dropdown */
 .header { position: sticky; top: 0; }
 
-/* Smooth arc transition */
+/* Synchronized arc rendering with rAF needle animation */
 #gauge-arc {
-    transition: stroke-dashoffset 0.15s linear;
+    will-change: stroke-dashoffset;
+    transition: none;
 }
 
 /* Light mode gauge track */

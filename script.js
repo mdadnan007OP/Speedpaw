@@ -49,9 +49,14 @@ function initApp() {
     const currentUnitEl     = document.getElementById('current-unit');
     const phaseText         = document.getElementById('phase-text');
     const gaugeArc          = document.getElementById('gauge-arc');
+    const gaugeNeedle       = document.getElementById('gauge-needle');
 
-    const valDlMobile       = document.getElementById('val-dl-mobile');
+    // Download value element in the right-panel metric card (desktop and tablet)
+    // Note: val-dl-mobile was removed in favour of a single unified card
+    const valDl             = document.getElementById('val-dl');
+    const unitDl            = document.getElementById('unit-dl');
     const valUl             = document.getElementById('val-ul');
+    const unitUl            = document.getElementById('unit-ul');
     const valPing           = document.getElementById('val-ping');
     const valJitter         = document.getElementById('val-jitter');
 
@@ -123,9 +128,15 @@ function initApp() {
 
     let activeAbortController = null;
     let activeXhrList         = [];
+    let activeStreamReaders   = [];
+    let activeGaugeRafId      = null;
+    let activeTimeoutList     = [];
     let currentTestRunId      = 0;
 
-    const ARC_LEN           = 345.4; // SVG Gauge arc circumference
+    // SVG Gauge geometry (R=108, 190 deg span from -95° to +95°)
+    const ARC_LEN             = 358.14;
+    const GAUGE_START_ANGLE   = -95;
+    const GAUGE_TOTAL_ANGLE   = 190;
 
     // ══════════════════════════════════════════════════════════
     // THEME MANAGEMENT
@@ -249,11 +260,82 @@ function initApp() {
     // ══════════════════════════════════════════════════════════
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-    function setGauge(value, max) {
-        if (!gaugeArc) return;
-        const pct    = Math.min(Math.max(value, 0) / max, 1);
-        const visual = Math.pow(pct, 0.55); // Logarithmic-feeling curve
-        gaugeArc.style.strokeDashoffset = ARC_LEN - visual * ARC_LEN;
+    // ══════════════════════════════════════════════════════════
+    // GAUGE SCALE MAPPING (NON-LINEAR UP TO 1000 Mbps / 1 Gbps)
+    // ══════════════════════════════════════════════════════════
+    const GAUGE_SCALE = [
+        { speed: 0,    t: 0.00 },
+        { speed: 5,    t: 0.12 },
+        { speed: 10,   t: 0.22 },
+        { speed: 50,   t: 0.38 },
+        { speed: 100,  t: 0.52 },
+        { speed: 250,  t: 0.68 },
+        { speed: 500,  t: 0.80 },
+        { speed: 750,  t: 0.90 },
+        { speed: 1000, t: 1.00 }
+    ];
+
+    /**
+     * Non-linear speed to gauge proportion mapping [0.0, 1.0].
+     * Preserves high resolution for lower speeds (1-10 Mbps) while supporting up to 1 Gbps.
+     */
+    function speedToGauge(speed) {
+        if (speed <= 0) return 0;
+        if (speed >= 1000) return 1;
+        for (let i = 0; i < GAUGE_SCALE.length - 1; i++) {
+            const p1 = GAUGE_SCALE[i];
+            const p2 = GAUGE_SCALE[i + 1];
+            if (speed >= p1.speed && speed <= p2.speed) {
+                const frac = (speed - p1.speed) / (p2.speed - p1.speed);
+                return p1.t + frac * (p2.t - p1.t);
+            }
+        }
+        return 1;
+    }
+
+    /**
+     * Invertible gauge proportion [0.0, 1.0] to speed (Mbps).
+     * Used for the visual startup sweep animation.
+     */
+    function gaugeToSpeed(t) {
+        if (t <= 0) return 0;
+        if (t >= 1) return 1000;
+        for (let i = 0; i < GAUGE_SCALE.length - 1; i++) {
+            const p1 = GAUGE_SCALE[i];
+            const p2 = GAUGE_SCALE[i + 1];
+            if (t >= p1.t && t <= p2.t) {
+                const frac = (t - p1.t) / (p2.t - p1.t);
+                return p1.speed + frac * (p2.speed - p1.speed);
+            }
+        }
+        return 1000;
+    }
+
+    /**
+     * Synchronously updates the glowing arc, animated needle, and digital speed readout.
+     */
+    function updateGaugeVisuals(t, speedDisplay, unitDisplay) {
+        const clampedT = Math.min(Math.max(t, 0), 1);
+        if (gaugeArc) {
+            gaugeArc.style.strokeDashoffset = ARC_LEN * (1 - clampedT);
+        }
+        if (gaugeNeedle) {
+            const angle = GAUGE_START_ANGLE + clampedT * GAUGE_TOTAL_ANGLE;
+            gaugeNeedle.setAttribute('transform', `rotate(${angle.toFixed(2)}, 150, 150)`);
+        }
+        if (speedDisplay !== undefined && currentSpeedEl) {
+            currentSpeedEl.textContent = speedDisplay;
+        }
+        if (unitDisplay !== undefined && currentUnitEl) {
+            currentUnitEl.textContent = unitDisplay;
+        }
+    }
+
+    function cancelGaugeAnimation() {
+        if (activeGaugeRafId !== null) {
+            cancelAnimationFrame(activeGaugeRafId);
+            activeGaugeRafId = null;
+        }
     }
 
     function setProgress(pct) {
@@ -478,11 +560,12 @@ function initApp() {
     // ══════════════════════════════════════════════════════════
 
     function resetSpeedUI() {
-        [valDlMobile, valUl, valPing, valJitter].forEach(el => { if (el) el.textContent = '--'; });
-        if (currentSpeedEl)  currentSpeedEl.textContent = '0.0';
-        if (currentUnitEl)   currentUnitEl.textContent  = 'Mbps';
+        cancelGaugeAnimation();
+        [valDl, valUl, valPing, valJitter].forEach(el => { if (el) el.textContent = '--'; });
+        if (unitDl) unitDl.textContent = 'Mbps';
+        if (unitUl) unitUl.textContent = 'Mbps';
+        updateGaugeVisuals(0, '0.0', 'Mbps');
         if (phaseText)       phaseText.textContent       = 'SPEED TEST';
-        if (gaugeArc)        gaugeArc.style.strokeDashoffset = ARC_LEN;
         if (valTime)         valTime.textContent         = '--';
         if (progressWrap)    progressWrap.hidden          = true;
         if (progressBar)     progressBar.style.width      = '0%';
@@ -497,7 +580,11 @@ function initApp() {
         }
     });
 
-    function cancelSpeedTest() {
+    /**
+     * Complete lifecycle cleanup: stops animation frames, timers, aborts requests and stream readers.
+     */
+    function cleanupTestExecution() {
+        cancelGaugeAnimation();
         if (activeAbortController) {
             activeAbortController.abort();
             activeAbortController = null;
@@ -506,6 +593,18 @@ function initApp() {
             try { xhr.abort(); } catch(_) {}
         });
         activeXhrList = [];
+        activeStreamReaders.forEach(reader => {
+            try { reader.cancel(); } catch(_) {}
+        });
+        activeStreamReaders = [];
+        if (activeTimeoutList.length > 0) {
+            activeTimeoutList.forEach(id => clearTimeout(id));
+            activeTimeoutList = [];
+        }
+    }
+
+    function cancelSpeedTest() {
+        cleanupTestExecution();
 
         isTesting = false;
         primaryBtn.disabled    = false;
@@ -518,11 +617,118 @@ function initApp() {
         if (serverStatusText) serverStatusText.textContent = 'Test cancelled by user';
         setProgress(0);
         if (progressWrap) progressWrap.hidden = true;
+        updateGaugeVisuals(0, '0.0', 'Mbps');
+    }
+
+    /**
+     * Visual startup sweep: 0 → 5 → 10 → 50 → 100 → 250 → 500 → 750 → 1000 → 0
+     * Visual only; does NOT alter network measurement.
+     * Cancels immediately on test abort.
+     */
+    function runVisualStartupSweep(signal) {
+        return new Promise((resolve) => {
+            cancelGaugeAnimation();
+            const sweepDurationMs = 900;
+            const startTime = performance.now();
+
+            function step(now) {
+                if (signal.aborted) {
+                    cancelGaugeAnimation();
+                    updateGaugeVisuals(0, '0.0', 'Mbps');
+                    resolve();
+                    return;
+                }
+
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / sweepDurationMs, 1.0);
+
+                let t;
+                if (progress <= 0.52) {
+                    // Forward sweep: 0 -> 1000 (ease-out)
+                    const p = progress / 0.52;
+                    t = Math.sin(p * Math.PI / 2);
+                } else {
+                    // Return sweep: 1000 -> 0 (ease-in-out)
+                    const p = (progress - 0.52) / 0.48;
+                    t = 1 - (0.5 - 0.5 * Math.cos(p * Math.PI));
+                }
+
+                const sweepSpeed = gaugeToSpeed(t);
+                const speedText = sweepSpeed >= 1000 ? '1.00' : (sweepSpeed < 10 ? sweepSpeed.toFixed(1) : Math.round(sweepSpeed).toString());
+                const unitText = sweepSpeed >= 1000 ? 'Gbps' : 'Mbps';
+
+                updateGaugeVisuals(t, speedText, unitText);
+
+                if (progress < 1.0) {
+                    activeGaugeRafId = requestAnimationFrame(step);
+                } else {
+                    activeGaugeRafId = null;
+                    updateGaugeVisuals(0, '0.0', 'Mbps');
+                    resolve();
+                }
+            }
+
+            activeGaugeRafId = requestAnimationFrame(step);
+        });
+    }
+
+    /**
+     * Decoupled rAF render loop: smooths needle and DOM updates at ~30-50 FPS without lagging network streams.
+     * Raw byte counters remain strictly independent from UI smoothing.
+     */
+    function startLiveGaugeRenderLoop(liveState, onCompleteSignal) {
+        cancelGaugeAnimation();
+        let visualSpeed = 0;
+        let lastRenderTime = performance.now();
+
+        function renderFrame(now) {
+            if (!liveState.isRunning || onCompleteSignal.aborted) {
+                return;
+            }
+
+            const dt = (now - lastRenderTime) / 1000;
+            // Throttle to ~30-50 FPS (min 20ms between visual updates)
+            if (dt >= 0.02) {
+                lastRenderTime = now;
+                const elapsedSec = (now - liveState.startTime) / 1000;
+                if (elapsedSec > 0.04) {
+                    const actualInstantMbps = (liveState.bytes * 8) / (elapsedSec * 1000000);
+
+                    // Responsive exponential smoothing for UI needle movement
+                    const smoothingFactor = Math.min(dt * 7.5, 0.4);
+                    visualSpeed = visualSpeed === 0 ? actualInstantMbps : (visualSpeed + (actualInstantMbps - visualSpeed) * smoothingFactor);
+
+                    const t = speedToGauge(visualSpeed);
+                    const displaySpeed = visualSpeed >= 1000 ? (visualSpeed / 1000).toFixed(2) : visualSpeed.toFixed(1);
+                    const displayUnit = visualSpeed >= 1000 ? 'Gbps' : 'Mbps';
+
+                    updateGaugeVisuals(t, displaySpeed, displayUnit);
+
+                    if (liveState.phase === 'dl') {
+                        if (valDl) valDl.textContent = displaySpeed;
+                        if (unitDl) unitDl.textContent = displayUnit;
+                        const pct = Math.min(liveState.bytes / liveState.totalTargetBytes, 1);
+                        setProgress(20 + pct * 40);
+                    } else if (liveState.phase === 'ul') {
+                        if (valUl) valUl.textContent = displaySpeed;
+                        if (unitUl) unitUl.textContent = displayUnit;
+                        const pct = Math.min(liveState.bytes / liveState.totalTargetBytes, 1);
+                        setProgress(60 + pct * 36);
+                    }
+                }
+            }
+
+            if (liveState.isRunning && !onCompleteSignal.aborted) {
+                activeGaugeRafId = requestAnimationFrame(renderFrame);
+            }
+        }
+
+        activeGaugeRafId = requestAnimationFrame(renderFrame);
     }
 
     async function runGenuineSpeedTest() {
-        if (isTesting && activeAbortController) {
-            activeAbortController.abort();
+        if (isTesting) {
+            cleanupTestExecution();
         }
         isTesting = true;
         currentTestRunId++;
@@ -531,6 +737,7 @@ function initApp() {
         activeAbortController = new AbortController();
         const signal = activeAbortController.signal;
         activeXhrList = [];
+        activeStreamReaders = [];
 
         primaryBtn.disabled    = false;
         primaryBtn.dataset.mode = 'cancel';
@@ -540,11 +747,16 @@ function initApp() {
         if (progressWrap) progressWrap.hidden = false;
 
         const results = { ping: 0, jitter: 0, download: 0, upload: 0 };
-        let serverMeta = { serverName: 'Test Server', location: 'Oracle Cloud', clientIp: '--' };
+        // Default to Hyderabad server node
+        let serverMeta = {
+            serverName: 'SpeedPaw AWS Node',
+            location: 'Hyderabad, India',
+            clientIp: '--'
+        };
 
         try {
             // ──────────────────────────────────────────────────────────
-            // PHASE 1: CONNECTING & SERVER CONFIG
+            // PHASE 1: CONNECTING, SERVER CONFIG & STARTUP SWEEP
             // ──────────────────────────────────────────────────────────
             setState('connecting');
             setMascot('connecting');
@@ -552,26 +764,44 @@ function initApp() {
             if (serverStatusText) serverStatusText.textContent = 'Reaching test server...';
             setProgress(3);
 
+            // Execute the short visual startup sweep concurrently with server reachability
+            const sweepPromise = runVisualStartupSweep(signal);
+
+            // TODO: Future Multi-Server & Nearest-Server Selection Architecture
+            // When additional edge test nodes are deployed (e.g. AWS Mumbai, Singapore, Frankfurt, US-East):
+            // 1. Fetch available server list with geolocation coordinates from backend.
+            // 2. Ping / probe all candidate nodes concurrently during CONNECTING phase (1-2 lightweight probes each).
+            // 3. Automatically select the lowest-latency edge server for the speed test.
+            // 4. Allow manual server selection override via the "Change Server" modal/dropdown.
             try {
                 const cfgRes = await fetch(`${CFG.backendUrl}/api/config?r=${Date.now()}`, { signal, cache: 'no-store' });
                 if (cfgRes.ok) {
-                    serverMeta = await cfgRes.json();
+                    const cfgData = await cfgRes.json();
+                    if (cfgData.location) serverMeta.location = cfgData.location;
+                    if (cfgData.serverName) serverMeta.serverName = cfgData.serverName;
+                    if (cfgData.clientIp) serverMeta.clientIp = cfgData.clientIp;
                 }
             } catch (cfgErr) {
                 if (signal.aborted) throw new Error('AbortError');
-                console.warn('Backend /api/config unavailable, using fallback', cfgErr);
+                console.warn('Backend /api/config unavailable, using fallback node info', cfgErr);
             }
 
-            if (serverLocation) serverLocation.textContent = serverMeta.location;
+            if (serverLocation) serverLocation.textContent = serverMeta.location || 'Hyderabad, India';
             if (valIp && serverMeta.clientIp && serverMeta.clientIp !== 'Unknown') {
                 valIp.textContent = serverMeta.clientIp;
+                valIp.title = `Public IP: ${serverMeta.clientIp} (Click to copy)`;
+                valIp.dataset.fullIp = serverMeta.clientIp;
             }
             if (serverStatusText) serverStatusText.textContent = `Connected: ${serverMeta.serverName}`;
             setProgress(6);
-            await sleep(300);
+
+            // Await completion of the visual startup sweep before proceeding
+            await sweepPromise;
+            if (signal.aborted) throw new Error('AbortError');
+            updateGaugeVisuals(0, '0.0', 'Mbps');
 
             // ──────────────────────────────────────────────────────────
-            // PHASE 2: PING & JITTER (GENUINE ROUND-TRIP LATENCY)
+            // PHASE 2: PING & JITTER (FINITE SAMPLES WITH SAFETY TIMEOUT)
             // ──────────────────────────────────────────────────────────
             setState('ping');
             setMascot('ping');
@@ -579,46 +809,75 @@ function initApp() {
             if (currentUnitEl) currentUnitEl.textContent = 'ms';
             if (serverStatusText) serverStatusText.textContent = 'Measuring latency & jitter…';
 
+            const pingPhaseStart = performance.now();
+            const PING_PHASE_MAX_MS = 10000; // 10s maximum safety duration for ping phase
             const rttSamples = [];
+
             for (let i = 0; i < CFG.pingCount; i++) {
                 if (signal.aborted) throw new Error('AbortError');
+                if (performance.now() - pingPhaseStart > PING_PHASE_MAX_MS) {
+                    console.warn('Ping phase safety timeout reached');
+                    break;
+                }
+
+                const sampleController = new AbortController();
+                const onAbort = () => sampleController.abort();
+                signal.addEventListener('abort', onAbort, { once: true });
+                const sampleTimeoutId = setTimeout(() => sampleController.abort(), 2500);
 
                 const tStart = performance.now();
-                const pingRes = await fetch(`${CFG.backendUrl}/api/ping?r=${Date.now()}_${i}`, {
-                    signal,
-                    cache: 'no-store'
-                });
-                await pingRes.json();
-                const rtt = performance.now() - tStart;
-                rttSamples.push(rtt);
+                try {
+                    const pingRes = await fetch(`${CFG.backendUrl}/api/ping?r=${Date.now()}_${i}`, {
+                        signal: sampleController.signal,
+                        cache: 'no-store'
+                    });
+                    if (pingRes.ok) {
+                        await pingRes.json();
+                        const rtt = performance.now() - tStart;
+                        rttSamples.push(rtt);
 
-                // Update live gauge during ping
-                if (currentSpeedEl) currentSpeedEl.textContent = rtt.toFixed(0);
-                setGauge(rtt, 150);
+                        // Live gauge feedback during ping
+                        const pingGaugeT = Math.min(rtt / 150, 1.0);
+                        updateGaugeVisuals(pingGaugeT, rtt.toFixed(0), 'ms');
+                    }
+                } catch (sampleErr) {
+                    if (signal.aborted) throw new Error('AbortError');
+                    console.warn(`Ping sample ${i} failed or timed out`, sampleErr);
+                } finally {
+                    clearTimeout(sampleTimeoutId);
+                    signal.removeEventListener('abort', onAbort);
+                }
+
                 setProgress(6 + ((i + 1) / CFG.pingCount) * 14);
-                await sleep(40);
+                if (i < CFG.pingCount - 1) {
+                    await sleep(40);
+                }
             }
 
             // Discard warmup samples for accurate median
-            const validSamples = rttSamples.slice(CFG.pingWarmup);
-            if (validSamples.length === 0) validSamples.push(...rttSamples);
-            
-            const sortedRtts = [...validSamples].sort((a, b) => a - b);
-            const mid = Math.floor(sortedRtts.length / 2);
-            results.ping = sortedRtts.length % 2 !== 0 
-                ? sortedRtts[mid] 
-                : (sortedRtts[mid - 1] + sortedRtts[mid]) / 2;
+            const validSamples = rttSamples.length > CFG.pingWarmup
+                ? rttSamples.slice(CFG.pingWarmup)
+                : rttSamples;
 
-            // RFC 3550 Jitter: Mean deviation of consecutive packet delays
-            let consecutiveSum = 0;
-            for (let i = 1; i < validSamples.length; i++) {
-                consecutiveSum += Math.abs(validSamples[i] - validSamples[i - 1]);
+            if (validSamples.length > 0) {
+                const sortedRtts = [...validSamples].sort((a, b) => a - b);
+                const mid = Math.floor(sortedRtts.length / 2);
+                results.ping = sortedRtts.length % 2 !== 0
+                    ? sortedRtts[mid]
+                    : (sortedRtts[mid - 1] + sortedRtts[mid]) / 2;
+
+                // RFC 3550 Jitter: Mean deviation of consecutive packet delays
+                let consecutiveSum = 0;
+                for (let i = 1; i < validSamples.length; i++) {
+                    consecutiveSum += Math.abs(validSamples[i] - validSamples[i - 1]);
+                }
+                results.jitter = validSamples.length > 1 ? consecutiveSum / (validSamples.length - 1) : 0;
             }
-            results.jitter = validSamples.length > 1 ? consecutiveSum / (validSamples.length - 1) : 0;
 
             if (valPing) valPing.textContent = results.ping.toFixed(0);
             if (valJitter) valJitter.textContent = results.jitter.toFixed(1);
             setProgress(20);
+            updateGaugeVisuals(0, '0.0', 'Mbps');
 
             // ──────────────────────────────────────────────────────────
             // PHASE 3: DOWNLOAD SPEED (CONCURRENT STREAM MEASUREMENT)
@@ -628,14 +887,23 @@ function initApp() {
             if (phaseText) phaseText.textContent = 'DOWNLOAD';
             if (currentUnitEl) currentUnitEl.textContent = 'Mbps';
             if (serverStatusText) serverStatusText.textContent = 'Measuring download throughput…';
-            setGauge(0, 500);
+            updateGaugeVisuals(0, '0.0', 'Mbps');
 
             const streamCount = Math.max(1, CFG.concurrentStreams || 3);
             const bytesPerStream = Math.floor(CFG.downloadSize / streamCount);
             let totalBytesDownloaded = 0;
             const dlStartTime = performance.now();
-            let lastProgressUpdate = dlStartTime;
-            let displaySpeedEma = 0;
+
+            const liveDlState = {
+                bytes: 0,
+                totalTargetBytes: CFG.downloadSize,
+                startTime: dlStartTime,
+                phase: 'dl',
+                isRunning: true
+            };
+
+            // Start decoupled high-performance rAF render loop
+            startLiveGaugeRenderLoop(liveDlState, signal);
 
             const downloadPromises = Array.from({ length: streamCount }).map(async (_, idx) => {
                 const url = `${CFG.backendUrl}/api/download?size=${bytesPerStream}&stream=${idx}&r=${Date.now()}`;
@@ -643,38 +911,37 @@ function initApp() {
                 if (!res.ok || !res.body) throw new Error('Download request failed');
 
                 const reader = res.body.getReader();
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    totalBytesDownloaded += value.length;
-
-                    const now = performance.now();
-                    if (now - lastProgressUpdate > 80) {
-                        const elapsedSec = (now - dlStartTime) / 1000;
-                        if (elapsedSec > 0.05) {
-                            const instantMbps = (totalBytesDownloaded * 8) / (elapsedSec * 1000000);
-                            displaySpeedEma = displaySpeedEma === 0 ? instantMbps : (displaySpeedEma * 0.7 + instantMbps * 0.3);
-
-                            if (currentSpeedEl) currentSpeedEl.textContent = displaySpeedEma.toFixed(1);
-                            setGauge(displaySpeedEma, displaySpeedEma > 500 ? 1000 : 500);
-
-                            const pct = Math.min(totalBytesDownloaded / CFG.downloadSize, 1);
-                            setProgress(20 + pct * 40);
-                            lastProgressUpdate = now;
-                        }
+                activeStreamReaders.push(reader);
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        liveDlState.bytes += value.length;
+                        totalBytesDownloaded += value.length;
                     }
+                } finally {
+                    try { reader.releaseLock(); } catch (_) {}
                 }
             });
 
             await Promise.all(downloadPromises);
 
+            liveDlState.isRunning = false;
+            cancelGaugeAnimation();
+
             const totalDlDurationSec = (performance.now() - dlStartTime) / 1000;
             results.download = (totalBytesDownloaded * 8) / (totalDlDurationSec * 1000000);
 
-            if (currentSpeedEl) currentSpeedEl.textContent = results.download.toFixed(1);
-            if (valDlMobile)   valDlMobile.textContent   = results.download.toFixed(1);
+            // Display raw verified final download calculation on gauge and cards
+            const finalDlGaugeT = speedToGauge(results.download);
+            const finalDlDisplay = results.download >= 1000 ? (results.download / 1000).toFixed(2) : results.download.toFixed(1);
+            const finalDlUnit = results.download >= 1000 ? 'Gbps' : 'Mbps';
+            updateGaugeVisuals(finalDlGaugeT, finalDlDisplay, finalDlUnit);
+
+            if (valDl) valDl.textContent = finalDlDisplay;
+            if (unitDl) unitDl.textContent = finalDlUnit;
             setProgress(60);
-            await sleep(200);
+            await sleep(250);
 
             // ──────────────────────────────────────────────────────────
             // PHASE 4: UPLOAD SPEED (REAL BINARY OCTET STREAM)
@@ -683,41 +950,39 @@ function initApp() {
             setMascot('ul');
             if (phaseText) phaseText.textContent = 'UPLOAD';
             if (serverStatusText) serverStatusText.textContent = 'Measuring upload throughput…';
-            setGauge(0, 100);
+            updateGaugeVisuals(0, '0.0', 'Mbps');
 
-            // Pre-allocate random binary test buffer
             const uploadSize = CFG.uploadSize || (8 * 1024 * 1024);
             const uploadPayload = new Uint8Array(uploadSize);
             for (let i = 0; i < uploadPayload.length; i += 65536) {
                 uploadPayload[i] = Math.floor(Math.random() * 256);
             }
 
+            const liveUlState = {
+                bytes: 0,
+                totalTargetBytes: uploadSize,
+                startTime: performance.now(),
+                phase: 'ul',
+                isRunning: true
+            };
+
+            startLiveGaugeRenderLoop(liveUlState, signal);
+
             results.upload = await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 activeXhrList.push(xhr);
                 const ulStartTime = performance.now();
-                let lastUlUpdate = ulStartTime;
-                let uploadSpeedEma = 0;
+                liveUlState.startTime = ulStartTime;
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable && e.loaded > 0) {
-                        const now = performance.now();
-                        const elapsedSec = (now - ulStartTime) / 1000;
-                        if (elapsedSec > 0.05 && now - lastUlUpdate > 80) {
-                            const instantMbps = (e.loaded * 8) / (elapsedSec * 1000000);
-                            uploadSpeedEma = uploadSpeedEma === 0 ? instantMbps : (uploadSpeedEma * 0.7 + instantMbps * 0.3);
-
-                            if (currentSpeedEl) currentSpeedEl.textContent = uploadSpeedEma.toFixed(1);
-                            setGauge(uploadSpeedEma, uploadSpeedEma > 100 ? 300 : 100);
-
-                            const pct = Math.min(e.loaded / uploadSize, 1);
-                            setProgress(60 + pct * 35);
-                            lastUlUpdate = now;
-                        }
+                        liveUlState.bytes = e.loaded;
                     }
                 };
 
                 xhr.onload = () => {
+                    liveUlState.isRunning = false;
+                    cancelGaugeAnimation();
                     if (xhr.status >= 200 && xhr.status < 300) {
                         const totalUlDurationSec = (performance.now() - ulStartTime) / 1000;
                         const finalUlMbps = (uploadSize * 8) / (totalUlDurationSec * 1000000);
@@ -727,18 +992,39 @@ function initApp() {
                     }
                 };
 
-                xhr.onerror = () => reject(new Error('Network error during upload'));
-                xhr.onabort = () => reject(new Error('AbortError'));
+                xhr.onerror = () => {
+                    liveUlState.isRunning = false;
+                    cancelGaugeAnimation();
+                    reject(new Error('Network error during upload'));
+                };
+                xhr.onabort = () => {
+                    liveUlState.isRunning = false;
+                    cancelGaugeAnimation();
+                    reject(new Error('AbortError'));
+                };
 
-                signal.addEventListener('abort', () => xhr.abort());
+                const abortHandler = () => xhr.abort();
+                signal.addEventListener('abort', abortHandler, { once: true });
 
                 xhr.open('POST', `${CFG.backendUrl}/api/upload?r=${Date.now()}`);
                 xhr.setRequestHeader('Content-Type', 'application/octet-stream');
                 xhr.send(uploadPayload);
+
+                // Remove abort listener once XHR finishes (regardless of outcome)
+                const cleanupAbortListener = () => signal.removeEventListener('abort', abortHandler);
+                xhr.addEventListener('loadend', cleanupAbortListener, { once: true });
             });
 
-            if (currentSpeedEl) currentSpeedEl.textContent = results.upload.toFixed(1);
-            if (valUl)          valUl.textContent          = results.upload.toFixed(1);
+            liveUlState.isRunning = false;
+            cancelGaugeAnimation();
+
+            const finalUlDisplay = results.upload >= 1000 ? (results.upload / 1000).toFixed(2) : results.upload.toFixed(1);
+            const finalUlUnit = results.upload >= 1000 ? 'Gbps' : 'Mbps';
+            const finalUlGaugeT = speedToGauge(results.upload);
+            updateGaugeVisuals(finalUlGaugeT, finalUlDisplay, finalUlUnit);
+
+            if (valUl) valUl.textContent = finalUlDisplay;
+            if (unitUl) unitUl.textContent = finalUlUnit;
             setProgress(96);
 
             // ──────────────────────────────────────────────────────────
@@ -756,6 +1042,9 @@ function initApp() {
 
         } catch (err) {
             if (err.name === 'AbortError' || err.message === 'AbortError') {
+                // Clean abort (user cancel or per-sample timeout). isTesting is reset by cancelSpeedTest().
+                // Defensively ensure isTesting is false in case abort originated outside of cancelSpeedTest().
+                isTesting = false;
                 console.log('Speed test cleanly aborted.');
             } else {
                 console.error('Speed test encountered error:', err);
@@ -765,6 +1054,7 @@ function initApp() {
     }
 
     function handleSpeedTestError(err) {
+        cleanupTestExecution();
         isTesting = false;
         primaryBtn.disabled    = false;
         primaryBtn.dataset.mode = 'start';
@@ -777,9 +1067,12 @@ function initApp() {
             serverStatusText.textContent = 'Cannot reach speed server. Check connection.';
         }
         setProgress(0);
+        updateGaugeVisuals(0, '0.0', 'Mbps');
     }
 
     function presentFinalResults(results, serverMeta) {
+        cleanupTestExecution();
+
         // Transparent 0-100 Score Formula:
         // Download (40pts) + Upload (25pts) + Ping (25pts) + Jitter (10pts)
         const dlScore     = Math.min(results.download / 100, 1) * 40;
@@ -797,11 +1090,24 @@ function initApp() {
         setMascot(ratingCategory);
         setState(`result-${ratingCategory}`);
 
-        setGauge(results.download, results.download > 500 ? 1000 : 500);
-        if (currentSpeedEl)   currentSpeedEl.textContent   = results.download.toFixed(1);
-        if (currentUnitEl)    currentUnitEl.textContent    = 'Mbps';
+        const finalDlGaugeT = speedToGauge(results.download);
+        const dlDisplay = results.download >= 1000 ? (results.download / 1000).toFixed(2) : results.download.toFixed(1);
+        const dlUnit = results.download >= 1000 ? 'Gbps' : 'Mbps';
+        updateGaugeVisuals(finalDlGaugeT, dlDisplay, dlUnit);
+
         if (phaseText)        phaseText.textContent        = 'DOWNLOAD';
         if (serverStatusText) serverStatusText.textContent = `Completed — ${serverMeta.serverName}`;
+
+        if (valDl)       valDl.textContent       = dlDisplay;
+        if (unitDl)      unitDl.textContent      = dlUnit;
+
+        const ulDisplay = results.upload >= 1000 ? (results.upload / 1000).toFixed(2) : results.upload.toFixed(1);
+        const ulUnit = results.upload >= 1000 ? 'Gbps' : 'Mbps';
+        if (valUl)       valUl.textContent       = ulDisplay;
+        if (unitUl)      unitUl.textContent      = ulUnit;
+
+        if (valPing)     valPing.textContent     = results.ping.toFixed(0);
+        if (valJitter)   valJitter.textContent   = results.jitter.toFixed(1);
 
         if (valTime) valTime.textContent = formatTime(new Date());
 
@@ -1112,8 +1418,13 @@ function initApp() {
     }
 
     // ══════════════════════════════════════════════════════════
-    // CONTINUOUS PING & JITTER TOOL
     // ══════════════════════════════════════════════════════════
+    // CONTINUOUS PING & JITTER DIAGNOSTIC TOOL (SAFETY FIRST)
+    // ══════════════════════════════════════════════════════════
+    let pingMonitorAbort = null;
+    let pingMonitorSafetyTimeout = null;
+    const PING_MONITOR_MAX_DURATION_MS = 5 * 60 * 1000; // 5-minute safety ceiling
+
     if (btnPingToggle) {
         btnPingToggle.addEventListener('click', () => {
             if (isPingToolRunning) {
@@ -1125,40 +1436,65 @@ function initApp() {
     }
 
     function startPingMonitor() {
+        stopPingMonitor(); // Ensure clean slate without duplicate intervals
+
         isPingToolRunning = true;
+        pingMonitorAbort = new AbortController();
+        const signal = pingMonitorAbort.signal;
+
         btnPingToggle.textContent = 'Stop Ping Monitor';
         btnPingToggle.style.background = 'var(--danger)';
         pingToolHistory = [];
 
+        // Safety timeout: automatically stop after 5 minutes to prevent abandoned background loops
+        pingMonitorSafetyTimeout = setTimeout(() => {
+            if (isPingToolRunning) {
+                console.warn('Ping monitor reached maximum 5-minute safety duration.');
+                stopPingMonitor();
+                if (ptCurrentPing) ptCurrentPing.textContent = 'Limit (5m)';
+            }
+        }, PING_MONITOR_MAX_DURATION_MS);
+
+        let isFetching = false;
         async function doSample() {
-            if (!isPingToolRunning) return;
+            if (!isPingToolRunning || signal.aborted || isFetching) return;
+            isFetching = true;
             const tStart = performance.now();
             try {
-                const res = await fetch(`${CFG.backendUrl}/api/ping?r=${Date.now()}`, { cache: 'no-store' });
-                await res.json();
-                const rtt = performance.now() - tStart;
-                pingToolHistory.push(rtt);
-                if (pingToolHistory.length > 50) pingToolHistory.shift();
+                const res = await fetch(`${CFG.backendUrl}/api/ping?r=${Date.now()}`, {
+                    signal,
+                    cache: 'no-store'
+                });
+                if (res.ok) {
+                    await res.json();
+                    const rtt = performance.now() - tStart;
+                    pingToolHistory.push(rtt);
+                    if (pingToolHistory.length > 50) pingToolHistory.shift();
 
-                // Compute min, avg, max, jitter
-                const min = Math.min(...pingToolHistory);
-                const max = Math.max(...pingToolHistory);
-                const sum = pingToolHistory.reduce((a, b) => a + b, 0);
-                const avg = sum / pingToolHistory.length;
+                    // Compute min, avg, max, jitter
+                    const min = Math.min(...pingToolHistory);
+                    const max = Math.max(...pingToolHistory);
+                    const sum = pingToolHistory.reduce((a, b) => a + b, 0);
+                    const avg = sum / pingToolHistory.length;
 
-                let jitterSum = 0;
-                for (let i = 1; i < pingToolHistory.length; i++) {
-                    jitterSum += Math.abs(pingToolHistory[i] - pingToolHistory[i - 1]);
+                    let jitterSum = 0;
+                    for (let i = 1; i < pingToolHistory.length; i++) {
+                        jitterSum += Math.abs(pingToolHistory[i] - pingToolHistory[i - 1]);
+                    }
+                    const jitter = pingToolHistory.length > 1 ? jitterSum / (pingToolHistory.length - 1) : 0;
+
+                    if (ptCurrentPing) ptCurrentPing.textContent = rtt.toFixed(0);
+                    if (ptMinPing)     ptMinPing.textContent     = min.toFixed(0);
+                    if (ptAvgPing)     ptAvgPing.textContent     = avg.toFixed(0);
+                    if (ptMaxPing)     ptMaxPing.textContent     = max.toFixed(0);
+                    if (ptJitter)      ptJitter.textContent      = jitter.toFixed(1);
                 }
-                const jitter = pingToolHistory.length > 1 ? jitterSum / (pingToolHistory.length - 1) : 0;
-
-                if (ptCurrentPing) ptCurrentPing.textContent = rtt.toFixed(0);
-                if (ptMinPing)     ptMinPing.textContent     = min.toFixed(0);
-                if (ptAvgPing)     ptAvgPing.textContent     = avg.toFixed(0);
-                if (ptMaxPing)     ptMaxPing.textContent     = max.toFixed(0);
-                if (ptJitter)      ptJitter.textContent      = jitter.toFixed(1);
-            } catch (_) {
-                if (ptCurrentPing) ptCurrentPing.textContent = 'Timeout';
+            } catch (e) {
+                if (!signal.aborted && ptCurrentPing) {
+                    ptCurrentPing.textContent = 'Timeout';
+                }
+            } finally {
+                isFetching = false;
             }
         }
 
@@ -1168,10 +1504,31 @@ function initApp() {
 
     function stopPingMonitor() {
         isPingToolRunning = false;
-        clearInterval(pingToolInterval);
-        btnPingToggle.textContent = 'Start Ping Monitor';
-        btnPingToggle.style.background = '';
+        if (pingMonitorAbort) {
+            pingMonitorAbort.abort();
+            pingMonitorAbort = null;
+        }
+        if (pingToolInterval) {
+            clearInterval(pingToolInterval);
+            pingToolInterval = null;
+        }
+        if (pingMonitorSafetyTimeout) {
+            clearTimeout(pingMonitorSafetyTimeout);
+            pingMonitorSafetyTimeout = null;
+        }
+        if (btnPingToggle) {
+            btnPingToggle.textContent = 'Start Ping Monitor';
+            btnPingToggle.style.background = '';
+        }
     }
+
+    // Stop monitor if page is hidden, navigating away, or unloaded
+    window.addEventListener('pagehide', stopPingMonitor);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && isPingToolRunning) {
+            stopPingMonitor();
+        }
+    });
 
     // ══════════════════════════════════════════════════════════
     // IP & CONNECTION INFO TOOL
@@ -1212,19 +1569,42 @@ function initApp() {
             console.log('External Geo API bypassed or blocked, using server info.');
         }
 
+        // Store full IP on element for copy operations (display may be visually truncated)
         ipDisplay.textContent = detectedIp;
+        ipDisplay.title = `Full IP: ${detectedIp}`;
+        ipDisplay.dataset.fullIp = detectedIp;
         if (ipIsp)     ipIsp.textContent     = ispName;
         if (ipCity)    ipCity.textContent    = city;
         if (ipCountry) ipCountry.textContent = country;
         if (ipAsn)     ipAsn.textContent     = asn;
 
-        // Also update home page IP badge
-        if (valIp && detectedIp !== '--') valIp.textContent = detectedIp;
+        // Also update home page IP badge with accessible full IP and tooltip
+        if (valIp && detectedIp !== '--') {
+            // For long IPv6 addresses, truncate display but preserve full value in data-fullIp
+            valIp.textContent = detectedIp;
+            valIp.title = `Full IP: ${detectedIp} — click to copy`;
+            valIp.dataset.fullIp = detectedIp;
+        }
+    }
+
+    // Accessible click-to-copy handler for the home page IP badge
+    if (valIp) {
+        valIp.addEventListener('click', () => {
+            const fullIp = valIp.dataset.fullIp || valIp.textContent;
+            if (fullIp && fullIp !== '--') {
+                navigator.clipboard.writeText(fullIp).then(() => {
+                    const prev = valIp.textContent;
+                    valIp.textContent = 'Copied!';
+                    setTimeout(() => { valIp.textContent = prev; }, 1500);
+                }).catch(() => {});
+            }
+        });
     }
 
     if (btnCopyIp) {
         btnCopyIp.addEventListener('click', () => {
-            const text = ipDisplay ? ipDisplay.textContent : '';
+            // Use data-fullIp if set — ensures full IPv6 address is copied even if display is visually truncated
+            const text = (ipDisplay && ipDisplay.dataset.fullIp) || (ipDisplay && ipDisplay.textContent) || '';
             if (text && text !== 'Detecting…') {
                 navigator.clipboard.writeText(text).then(() => {
                     const originalHtml = btnCopyIp.innerHTML;
