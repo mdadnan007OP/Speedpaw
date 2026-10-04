@@ -13,8 +13,10 @@
 
   window.SPEEDPAW_CONFIG = {
     // ── SERVER ENDPOINT ──────────────────────────────────────
-    // Auto-detects localhost for development, defaults to production backend domain in production.
-    // Replace 'https://speedtest-server-domain' with your actual AWS EC2 domain or IP.
+    // Production AWS EC2 speed test node in Hyderabad, India.
+    // TODO: Future Multi-Server & Nearest-Server Selection Architecture:
+    // Support dynamic array of edge endpoints (e.g. AWS Hyderabad, Mumbai, Singapore, Frankfurt).
+    // Implement client-side lowest-ping auto-discovery and user manual override.
     backendUrl: window.SPEEDPAW_OVERRIDE_URL || (isLocal
       ? 'http://localhost:3001'
       : 'https://speedpaw-api.duckdns.org'),
