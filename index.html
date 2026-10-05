@@ -288,22 +288,14 @@
                             </g>
 
                             <!-- High-Tech Animated Needle Indicator (Rotates around fixed SVG center 150, 150) -->
+                            <!-- Pivot is the invisible transform origin at (150,150) — no visible hub needed -->
                             <g id="gauge-needle" class="gauge-needle" transform="rotate(-95, 150, 150)">
-                                <!-- Glowing outer needle pointer (r=38 to r=104) -->
-                                <polygon points="146.5,112 148.8,56 150,46 151.2,56 153.5,112" fill="url(#arcGradient)" filter="url(#glow)"/>
+                                <!-- Glowing outer needle pointer (tip at r=104, base stops at r=30 from center to avoid text overlap) -->
+                                <polygon points="147,120 148.8,56 150,46 151.2,56 153,120" fill="url(#arcGradient)" filter="url(#glow)"/>
                                 <!-- Sharp contrast inner blade -->
-                                <polygon points="147.5,110 149.2,56 150,47 150.8,56 152.5,110" fill="#ffffff"/>
+                                <polygon points="147.8,118 149.2,56 150,47 150.8,56 152.2,118" fill="#ffffff"/>
                                 <!-- Sharp accent needle tip -->
                                 <circle cx="150" cy="46" r="2.2" fill="#22d3ee"/>
-                                <!-- Hub base anchor circle -->
-                                <circle cx="150" cy="150" r="8" fill="url(#arcGradient)"/>
-                            </g>
-
-                            <!-- Fixed Center Pivot Hub (Always anchored at exact center 150, 150) -->
-                            <g class="gauge-center-hub">
-                                <circle cx="150" cy="150" r="13" fill="#0b0f1a" stroke="rgba(59,130,246,0.4)" stroke-width="1.5"/>
-                                <circle cx="150" cy="150" r="7" fill="#121826" stroke="rgba(34,211,238,0.8)" stroke-width="1.5"/>
-                                <circle cx="150" cy="150" r="3" fill="var(--accent)"/>
                             </g>
                         </svg>
 
