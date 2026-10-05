@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://speedpaw.com/sitemap.xml
+Sitemap: https://speedpaw.mdadnan06007.workers.dev/sitemap.xml
