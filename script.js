@@ -323,10 +323,10 @@ function initApp() {
             const angle = GAUGE_START_ANGLE + clampedT * GAUGE_TOTAL_ANGLE;
             gaugeNeedle.setAttribute('transform', `rotate(${angle.toFixed(2)}, 150, 150)`);
         }
-        if (speedDisplay !== undefined && currentSpeedEl) {
+        if (speedDisplay !== undefined && currentSpeedEl && currentSpeedEl.textContent !== speedDisplay) {
             currentSpeedEl.textContent = speedDisplay;
         }
-        if (unitDisplay !== undefined && currentUnitEl) {
+        if (unitDisplay !== undefined && currentUnitEl && currentUnitEl.textContent !== unitDisplay) {
             currentUnitEl.textContent = unitDisplay;
         }
     }
@@ -680,6 +680,9 @@ function initApp() {
         cancelGaugeAnimation();
         let visualSpeed = 0;
         let lastRenderTime = performance.now();
+        let lastDisplaySpeed = '';
+        let lastDisplayUnit = '';
+        let lastProgressPct = -1;
 
         function renderFrame(now) {
             if (!liveState.isRunning || onCompleteSignal.aborted) {
@@ -687,8 +690,8 @@ function initApp() {
             }
 
             const dt = (now - lastRenderTime) / 1000;
-            // Throttle to ~30-50 FPS (min 20ms between visual updates)
-            if (dt >= 0.02) {
+            // Throttle UI renders to ~30 FPS (min 30ms between visual DOM updates) to preserve mobile CPU/GPU
+            if (dt >= 0.03) {
                 lastRenderTime = now;
                 const elapsedSec = (now - liveState.startTime) / 1000;
                 if (elapsedSec > 0.04) {
@@ -705,16 +708,35 @@ function initApp() {
                     updateGaugeVisuals(t, displaySpeed, displayUnit);
 
                     if (liveState.phase === 'dl') {
-                        if (valDl) valDl.textContent = displaySpeed;
-                        if (unitDl) unitDl.textContent = displayUnit;
-                        const pct = Math.min(liveState.bytes / liveState.totalTargetBytes, 1);
-                        setProgress(20 + pct * 40);
+                        if (valDl && lastDisplaySpeed !== displaySpeed) {
+                            valDl.textContent = displaySpeed;
+                        }
+                        if (unitDl && lastDisplayUnit !== displayUnit) {
+                            unitDl.textContent = displayUnit;
+                        }
+                        const rawPct = Math.min(liveState.bytes / liveState.totalTargetBytes, 1);
+                        const progressInt = Math.round(20 + rawPct * 40);
+                        if (progressInt !== lastProgressPct) {
+                            lastProgressPct = progressInt;
+                            setProgress(progressInt);
+                        }
                     } else if (liveState.phase === 'ul') {
-                        if (valUl) valUl.textContent = displaySpeed;
-                        if (unitUl) unitUl.textContent = displayUnit;
-                        const pct = Math.min(liveState.bytes / liveState.totalTargetBytes, 1);
-                        setProgress(60 + pct * 36);
+                        if (valUl && lastDisplaySpeed !== displaySpeed) {
+                            valUl.textContent = displaySpeed;
+                        }
+                        if (unitUl && lastDisplayUnit !== displayUnit) {
+                            unitUl.textContent = displayUnit;
+                        }
+                        const rawPct = Math.min(liveState.bytes / liveState.totalTargetBytes, 1);
+                        const progressInt = Math.round(60 + rawPct * 36);
+                        if (progressInt !== lastProgressPct) {
+                            lastProgressPct = progressInt;
+                            setProgress(progressInt);
+                        }
                     }
+
+                    lastDisplaySpeed = displaySpeed;
+                    lastDisplayUnit = displayUnit;
                 }
             }
 

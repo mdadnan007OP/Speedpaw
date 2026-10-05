@@ -8,12 +8,11 @@
  */
 (function () {
   const isLocal = window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === '';
+    window.location.hostname === '127.0.0.1';
 
   window.SPEEDPAW_CONFIG = {
     // ── SERVER ENDPOINT ──────────────────────────────────────
-    // Production AWS EC2 speed test node in Hyderabad, India.
+    // Production AWS EC2 speed test node in Hyderabad, India (Region: ap-south-2).
     // TODO: Future Multi-Server & Nearest-Server Selection Architecture:
     // Support dynamic array of edge endpoints (e.g. AWS Hyderabad, Mumbai, Singapore, Frankfurt).
     // Implement client-side lowest-ping auto-discovery and user manual override.

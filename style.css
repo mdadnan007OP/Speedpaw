@@ -439,9 +439,12 @@ button { background: none; border: none; font-family: inherit; cursor: pointer; 
 }
 
 .gauge-needle {
-    transform-origin: 150px 150px;
     pointer-events: none;
     will-change: transform;
+}
+
+.gauge-center-hub {
+    pointer-events: none;
 }
 
 .ip-display-text {
@@ -499,16 +502,40 @@ button { background: none; border: none; font-family: inherit; cursor: pointer; 
 .gauge-svg { width: 100%; height: 100%; overflow: visible; }
 .gauge-readout {
     position: absolute;
-    bottom: 20%;
+    bottom: 5%;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
+    pointer-events: none;
+    z-index: 10;
+    text-align: center;
+    width: 140px;
+    max-width: 90%;
 }
-.speed-number { font-family: var(--font-display); font-size: 4.5rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
-.speed-unit { font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-top: 0.25rem; }
-.phase-text { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 0.5rem; text-transform: uppercase; }
+.speed-number {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+}
+.speed-unit {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+}
+.phase-text {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+    text-transform: uppercase;
+}
 
 .server-info-wrap { margin-top: 1rem; display: flex; justify-content: center; }
 .server-status {
@@ -785,16 +812,20 @@ button { background: none; border: none; font-family: inherit; cursor: pointer; 
     
     .cat-wrap { max-width: 120px; }
     .gauge-container { max-width: 320px; }
-    .speed-number { font-size: 3.5rem; }
+    .speed-number { font-size: 3rem; }
+    .gauge-readout { bottom: 5%; }
     
     .info-cards-grid { grid-template-columns: repeat(2, 1fr); }
     .details-grid { grid-template-columns: 1fr; }
     .smart-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* Small Mobile (Max 480px / 360x800, 390x844) */
+/* Small Mobile (Max 480px / 360x800, 375x667, 390x844, 430x932) */
 @media (max-width: 480px) {
     .app { padding: 1rem; }
+    .gauge-container { max-width: 290px; }
+    .speed-number { font-size: 2.6rem; }
+    .gauge-readout { bottom: 4%; }
     .info-cards-grid, .smart-grid { grid-template-columns: 1fr; }
     .metric-card { min-width: 130px; }
     
