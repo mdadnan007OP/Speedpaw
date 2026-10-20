@@ -25,12 +25,21 @@
     pingCount: 10,                 // Number of round-trip samples
     pingWarmup: 2,                 // Discard first N samples (TCP handshake / DNS warmup)
 
-    // Download measurement
-    downloadSize: 25 * 1024 * 1024, // 25 MB total test volume
-    concurrentStreams: 3,          // Concurrent HTTP streams for bandwidth saturation
+    // Hard payload limits across all concurrent requests (50,000,000 bytes max)
+    maxDownloadBytes: 50000000,    // Hard ceiling for entire download test
+    maxUploadBytes: 50000000,      // Hard ceiling for entire upload test
+    maxPhaseDurationMs: 10000,     // 10s maximum measurement ceiling per direction
 
-    // Upload measurement
-    uploadSize: 8 * 1024 * 1024,   // 8 MB payload
+    // Adaptive download streams
+    concurrentStreams: 3,          // Concurrent HTTP streams for bandwidth saturation
+    initialDownloadTarget: 10 * 1024 * 1024, // 10 MB initial target
+
+    // Adaptive upload tuning
+    initialUploadChunkSize: 1024 * 1024, // 1 MB initial upload chunk
+
+    // Legacy fallback compatibility
+    downloadSize: 25 * 1024 * 1024,
+    uploadSize: 8 * 1024 * 1024,
 
     // ── CLIENT IP & GEO PROVIDER (Privacy-friendly) ───────────
     geoApiUrl: 'https://ipapi.co/json/'

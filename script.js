@@ -22,13 +22,18 @@ function initApp() {
     // ══════════════════════════════════════════════════════════
     const CFG = window.SPEEDPAW_CONFIG || {
         backendUrl: 'http://localhost:3001',
-        downloadSize: 25 * 1024 * 1024,
+        maxDownloadBytes: 50000000,
+        maxUploadBytes: 50000000,
+        maxPhaseDurationMs: 10000,
         concurrentStreams: 3,
-        uploadSize: 8 * 1024 * 1024,
         pingCount: 10,
         pingWarmup: 2,
         geoApiUrl: 'https://ipapi.co/json/'
     };
+
+    const MAX_TOTAL_DOWNLOAD_BYTES = Math.min(CFG.maxDownloadBytes || 50000000, 50000000);
+    const MAX_TOTAL_UPLOAD_BYTES   = Math.min(CFG.maxUploadBytes   || 50000000, 50000000);
+    const MAX_PHASE_DURATION_MS    = CFG.maxPhaseDurationMs || 10000;
 
     // ══════════════════════════════════════════════════════════
     // ELEMENT REFERENCES
@@ -242,6 +247,7 @@ function initApp() {
         if (route === '/screen-res') detectScreenInfo();
         if (route === '/history') renderHistoryTable();
         if (route === '/ip-info') loadIpInfo();
+        if (route === '/video-test') updateVideoQualityEstimate();
 
         // Close mobile nav drawer if open
         headerNav.classList.remove('mobile-open');
@@ -769,10 +775,11 @@ function initApp() {
         if (progressWrap) progressWrap.hidden = false;
 
         const results = { ping: 0, jitter: 0, download: 0, upload: 0 };
-        // Default to Hyderabad server node
+        // Default to Hyderabad server node (ap-south-2)
         let serverMeta = {
             serverName: 'SpeedPaw AWS Node',
             location: 'Hyderabad, India',
+            region: 'ap-south-2',
             clientIp: '--'
         };
 
@@ -789,18 +796,14 @@ function initApp() {
             // Execute the short visual startup sweep concurrently with server reachability
             const sweepPromise = runVisualStartupSweep(signal);
 
-            // TODO: Future Multi-Server & Nearest-Server Selection Architecture
-            // When additional edge test nodes are deployed (e.g. AWS Mumbai, Singapore, Frankfurt, US-East):
-            // 1. Fetch available server list with geolocation coordinates from backend.
-            // 2. Ping / probe all candidate nodes concurrently during CONNECTING phase (1-2 lightweight probes each).
-            // 3. Automatically select the lowest-latency edge server for the speed test.
-            // 4. Allow manual server selection override via the "Change Server" modal/dropdown.
+            // Probe backend config endpoint for real node identity, region & client IP
             try {
                 const cfgRes = await fetch(`${CFG.backendUrl}/api/config?r=${Date.now()}`, { signal, cache: 'no-store' });
                 if (cfgRes.ok) {
                     const cfgData = await cfgRes.json();
                     if (cfgData.location) serverMeta.location = cfgData.location;
                     if (cfgData.serverName) serverMeta.serverName = cfgData.serverName;
+                    if (cfgData.region) serverMeta.region = cfgData.region;
                     if (cfgData.clientIp) serverMeta.clientIp = cfgData.clientIp;
                 }
             } catch (cfgErr) {
@@ -808,7 +811,12 @@ function initApp() {
                 console.warn('Backend /api/config unavailable, using fallback node info', cfgErr);
             }
 
-            if (serverLocation) serverLocation.textContent = serverMeta.location || 'Hyderabad, India';
+            if (serverLocation) {
+                serverLocation.textContent = serverMeta.region
+                    ? `${serverMeta.location} (${serverMeta.region})`
+                    : (serverMeta.location || 'Hyderabad, India');
+                serverLocation.title = `Server: ${serverMeta.serverName} | Region: ${serverMeta.region || 'ap-south-2'}`;
+            }
             if (valIp && serverMeta.clientIp && serverMeta.clientIp !== 'Unknown') {
                 valIp.textContent = serverMeta.clientIp;
                 valIp.title = `Public IP: ${serverMeta.clientIp} (Click to copy)`;
@@ -912,13 +920,14 @@ function initApp() {
             updateGaugeVisuals(0, '0.0', 'Mbps');
 
             const streamCount = Math.max(1, CFG.concurrentStreams || 3);
-            const bytesPerStream = Math.floor(CFG.downloadSize / streamCount);
+            // Strict sharing of 50,000,000 bytes hard cap across all parallel streams
+            const baseBytesPerStream = Math.floor(MAX_TOTAL_DOWNLOAD_BYTES / streamCount);
             let totalBytesDownloaded = 0;
             const dlStartTime = performance.now();
 
             const liveDlState = {
                 bytes: 0,
-                totalTargetBytes: CFG.downloadSize,
+                totalTargetBytes: MAX_TOTAL_DOWNLOAD_BYTES,
                 startTime: dlStartTime,
                 phase: 'dl',
                 isRunning: true
@@ -927,32 +936,72 @@ function initApp() {
             // Start decoupled high-performance rAF render loop
             startLiveGaugeRenderLoop(liveDlState, signal);
 
-            const downloadPromises = Array.from({ length: streamCount }).map(async (_, idx) => {
-                const url = `${CFG.backendUrl}/api/download?size=${bytesPerStream}&stream=${idx}&r=${Date.now()}`;
-                const res = await fetch(url, { signal, cache: 'no-store' });
-                if (!res.ok || !res.body) throw new Error('Download request failed');
+            const dlPhaseController = new AbortController();
+            const onUserAbortDl = () => dlPhaseController.abort();
+            signal.addEventListener('abort', onUserAbortDl, { once: true });
 
-                const reader = res.body.getReader();
-                activeStreamReaders.push(reader);
-                try {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        liveDlState.bytes += value.length;
-                        totalBytesDownloaded += value.length;
+            // Hard 10-second ceiling timer for download phase
+            const dlTimeoutId = setTimeout(() => {
+                dlPhaseController.abort();
+            }, MAX_PHASE_DURATION_MS);
+
+            try {
+                const downloadPromises = Array.from({ length: streamCount }).map(async (_, idx) => {
+                    // Exact budget split so sum across all streams <= MAX_TOTAL_DOWNLOAD_BYTES
+                    const streamBytes = (idx === streamCount - 1)
+                        ? (MAX_TOTAL_DOWNLOAD_BYTES - baseBytesPerStream * (streamCount - 1))
+                        : baseBytesPerStream;
+
+                    const url = `${CFG.backendUrl}/api/download?size=${streamBytes}&stream=${idx}&r=${Date.now()}_${idx}`;
+                    const res = await fetch(url, { signal: dlPhaseController.signal, cache: 'no-store' });
+                    if (!res.ok || !res.body) throw new Error('Download request failed');
+
+                    const reader = res.body.getReader();
+                    activeStreamReaders.push(reader);
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            totalBytesDownloaded += value.length;
+                            liveDlState.bytes = totalBytesDownloaded;
+
+                            // 1. Hard 50 MB byte limit reached across all streams: stop immediately
+                            if (totalBytesDownloaded >= MAX_TOTAL_DOWNLOAD_BYTES) {
+                                dlPhaseController.abort();
+                                break;
+                            }
+
+                            // 2. Adaptive measurement window: stop when sufficient data collected (~6.5s)
+                            const elapsedMs = performance.now() - dlStartTime;
+                            if (elapsedMs >= 6500) {
+                                dlPhaseController.abort();
+                                break;
+                            }
+                        }
+                    } catch (readErr) {
+                        // Suppress AbortError from phase timer or byte cap
+                        if (signal.aborted) throw readErr;
+                    } finally {
+                        try { reader.releaseLock(); } catch (_) {}
                     }
-                } finally {
-                    try { reader.releaseLock(); } catch (_) {}
-                }
-            });
+                });
 
-            await Promise.all(downloadPromises);
+                await Promise.allSettled(downloadPromises);
+            } finally {
+                clearTimeout(dlTimeoutId);
+                signal.removeEventListener('abort', onUserAbortDl);
+            }
+
+            if (signal.aborted) throw new Error('AbortError');
 
             liveDlState.isRunning = false;
             cancelGaugeAnimation();
 
             const totalDlDurationSec = (performance.now() - dlStartTime) / 1000;
-            results.download = (totalBytesDownloaded * 8) / (totalDlDurationSec * 1000000);
+            // Strict Mbps calculation derived from actual transferred bytes and elapsed wall-clock time
+            results.download = (totalDlDurationSec > 0.05 && totalBytesDownloaded > 0)
+                ? (totalBytesDownloaded * 8) / (totalDlDurationSec * 1000000)
+                : 0;
 
             // Display raw verified final download calculation on gauge and cards
             const finalDlGaugeT = speedToGauge(results.download);
@@ -966,7 +1015,7 @@ function initApp() {
             await sleep(250);
 
             // ──────────────────────────────────────────────────────────
-            // PHASE 4: UPLOAD SPEED (REAL BINARY OCTET STREAM)
+            // PHASE 4: UPLOAD SPEED (ADAPTIVE BOUNDED CHUNKS)
             // ──────────────────────────────────────────────────────────
             setState('ul');
             setMascot('ul');
@@ -974,71 +1023,119 @@ function initApp() {
             if (serverStatusText) serverStatusText.textContent = 'Measuring upload throughput…';
             updateGaugeVisuals(0, '0.0', 'Mbps');
 
-            const uploadSize = CFG.uploadSize || (8 * 1024 * 1024);
-            const uploadPayload = new Uint8Array(uploadSize);
-            for (let i = 0; i < uploadPayload.length; i += 65536) {
-                uploadPayload[i] = Math.floor(Math.random() * 256);
-            }
+            let totalBytesUploaded = 0;
+            const ulStartTime = performance.now();
 
             const liveUlState = {
                 bytes: 0,
-                totalTargetBytes: uploadSize,
-                startTime: performance.now(),
+                totalTargetBytes: MAX_TOTAL_UPLOAD_BYTES,
+                startTime: ulStartTime,
                 phase: 'ul',
                 isRunning: true
             };
 
             startLiveGaugeRenderLoop(liveUlState, signal);
 
-            results.upload = await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                activeXhrList.push(xhr);
-                const ulStartTime = performance.now();
-                liveUlState.startTime = ulStartTime;
+            // Pre-allocate a 2MB reusable chunk of random bytes (avoiding large memory allocations)
+            const UPLOAD_BUF_SIZE = Math.min(2 * 1024 * 1024, MAX_TOTAL_UPLOAD_BYTES);
+            const uploadBuffer = new Uint8Array(UPLOAD_BUF_SIZE);
+            for (let i = 0; i < uploadBuffer.length; i += 65536) {
+                uploadBuffer[i] = Math.floor(Math.random() * 256);
+            }
 
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable && e.loaded > 0) {
-                        liveUlState.bytes = e.loaded;
+            let desiredChunkSize = Math.min(CFG.initialUploadChunkSize || (1024 * 1024), UPLOAD_BUF_SIZE);
+            let chunkIndex = 0;
+            let currentXhr = null;
+            let phaseTimedOut = false;
+
+            const ulPhaseTimerId = setTimeout(() => {
+                phaseTimedOut = true;
+                if (currentXhr) {
+                    try { currentXhr.abort(); } catch (_) {}
+                }
+            }, MAX_PHASE_DURATION_MS);
+
+            try {
+                while (totalBytesUploaded < MAX_TOTAL_UPLOAD_BYTES && !phaseTimedOut && !signal.aborted) {
+                    const elapsedMs = performance.now() - ulStartTime;
+                    // Stop after sufficient stable data has been gathered (~6.5s) unless total byte cap reached sooner
+                    if (elapsedMs >= 6500 && totalBytesUploaded >= desiredChunkSize) {
+                        break;
                     }
-                };
 
-                xhr.onload = () => {
-                    liveUlState.isRunning = false;
-                    cancelGaugeAnimation();
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        const totalUlDurationSec = (performance.now() - ulStartTime) / 1000;
-                        const finalUlMbps = (uploadSize * 8) / (totalUlDurationSec * 1000000);
-                        resolve(finalUlMbps);
-                    } else {
-                        reject(new Error(`Upload status error: ${xhr.status}`));
-                    }
-                };
+                    const remainingBudget = MAX_TOTAL_UPLOAD_BYTES - totalBytesUploaded;
+                    const thisChunkSize = Math.min(desiredChunkSize, remainingBudget, uploadBuffer.length);
+                    if (thisChunkSize <= 0) break;
 
-                xhr.onerror = () => {
-                    liveUlState.isRunning = false;
-                    cancelGaugeAnimation();
-                    reject(new Error('Network error during upload'));
-                };
-                xhr.onabort = () => {
-                    liveUlState.isRunning = false;
-                    cancelGaugeAnimation();
-                    reject(new Error('AbortError'));
-                };
+                    const chunkPayload = uploadBuffer.subarray(0, thisChunkSize);
+                    const chunkStartTime = performance.now();
+                    let chunkTransferred = 0;
 
-                const abortHandler = () => xhr.abort();
-                signal.addEventListener('abort', abortHandler, { once: true });
+                    await new Promise((resolve) => {
+                        const xhr = new XMLHttpRequest();
+                        currentXhr = xhr;
+                        activeXhrList.push(xhr);
 
-                xhr.open('POST', `${CFG.backendUrl}/api/upload?r=${Date.now()}`);
-                xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-                xhr.send(uploadPayload);
+                        xhr.upload.onprogress = (e) => {
+                            if (e.lengthComputable && e.loaded > 0) {
+                                chunkTransferred = Math.min(e.loaded, thisChunkSize);
+                                liveUlState.bytes = totalBytesUploaded + chunkTransferred;
+                            }
+                        };
 
-                // Remove abort listener once XHR finishes (regardless of outcome)
-                const cleanupAbortListener = () => signal.removeEventListener('abort', abortHandler);
-                xhr.addEventListener('loadend', cleanupAbortListener, { once: true });
-            });
+                        xhr.onload = () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                totalBytesUploaded += thisChunkSize;
+                                liveUlState.bytes = totalBytesUploaded;
+
+                                // Dynamically adjust chunk size for remaining budget:
+                                // If 1MB took < 350ms (> 23 Mbps), ramp chunk size up to 2MB buffer
+                                const chunkSec = (performance.now() - chunkStartTime) / 1000;
+                                if (chunkSec < 0.35 && desiredChunkSize < UPLOAD_BUF_SIZE) {
+                                    desiredChunkSize = Math.min(desiredChunkSize * 2, UPLOAD_BUF_SIZE);
+                                }
+                            }
+                            resolve();
+                        };
+
+                        xhr.onerror = () => {
+                            totalBytesUploaded += chunkTransferred;
+                            resolve();
+                        };
+
+                        xhr.onabort = () => {
+                            totalBytesUploaded += chunkTransferred;
+                            resolve();
+                        };
+
+                        const onUserAbort = () => xhr.abort();
+                        signal.addEventListener('abort', onUserAbort, { once: true });
+                        xhr.addEventListener('loadend', () => {
+                            signal.removeEventListener('abort', onUserAbort);
+                        }, { once: true });
+
+                        xhr.open('POST', `${CFG.backendUrl}/api/upload?chunk=${chunkIndex}&r=${Date.now()}_${chunkIndex}`);
+                        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+                        xhr.send(chunkPayload);
+                    });
+
+                    currentXhr = null;
+                    chunkIndex++;
+                }
+            } finally {
+                clearTimeout(ulPhaseTimerId);
+            }
+
+            if (signal.aborted) throw new Error('AbortError');
 
             liveUlState.isRunning = false;
             cancelGaugeAnimation();
+
+            const totalUlDurationSec = (performance.now() - ulStartTime) / 1000;
+            // Strict Mbps calculation derived from actual transferred bytes and elapsed wall-clock time
+            results.upload = (totalUlDurationSec > 0.05 && totalBytesUploaded > 0)
+                ? (totalBytesUploaded * 8) / (totalUlDurationSec * 1000000)
+                : 0;
 
             const finalUlDisplay = results.upload >= 1000 ? (results.upload / 1000).toFixed(2) : results.upload.toFixed(1);
             const finalUlUnit = results.upload >= 1000 ? 'Gbps' : 'Mbps';
@@ -1152,6 +1249,9 @@ function initApp() {
             jitter: results.jitter,
             rating: ratingCategory
         });
+
+        // Update video streaming quality capability with real measured download speed
+        updateVideoQualityEstimate(results.download);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1251,96 +1351,102 @@ function initApp() {
     // ══════════════════════════════════════════════════════════
     // GENUINE VIDEO QUALITY TEST
     // ══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
+    // ESTIMATED VIDEO STREAMING CAPABILITY (GENUINE MEASUREMENT)
+    // ══════════════════════════════════════════════════════════
+    // Conservative indicative thresholds accounting for codecs and network headroom.
+    // Estimates, not guarantees.
     const VIDEO_TIERS = [
-        { res: '360p',  minMbps: 0.7,  label: 'SD 360p (Mobile)' },
-        { res: '480p',  minMbps: 1.5,  label: 'SD 480p (Standard)' },
-        { res: '720p',  minMbps: 3.0,  label: 'HD 720p' },
-        { res: '1080p', minMbps: 5.0,  label: 'Full HD 1080p' },
-        { res: '1440p', minMbps: 12.0, label: '2K QHD 1440p' },
+        { res: '360p',  minMbps: 1.0,  label: 'SD 360p (Mobile)' },
+        { res: '480p',  minMbps: 2.5,  label: 'SD 480p (Standard)' },
+        { res: '720p',  minMbps: 5.0,  label: 'HD 720p' },
+        { res: '1080p', minMbps: 8.5,  label: 'Full HD 1080p' },
+        { res: '1440p', minMbps: 16.0, label: '2K QHD 1440p' },
         { res: '4K',    minMbps: 25.0, label: '4K Ultra HD (2160p)' },
     ];
 
-    if (btnVideoTest) {
-        btnVideoTest.addEventListener('click', () => {
-            if (!isVideoTesting) runGenuineVideoTest();
-        });
+    let lastCompletedDownloadSpeed = 0;
+
+    function getLatestValidDownloadSpeed() {
+        if (lastCompletedDownloadSpeed > 0) {
+            return lastCompletedDownloadSpeed;
+        }
+        const history = getHistoryRecords();
+        for (let i = 0; i < history.length; i++) {
+            const dl = Number(history[i].download);
+            if (!isNaN(dl) && dl > 0) {
+                return dl;
+            }
+        }
+        return null;
     }
 
-    async function runGenuineVideoTest() {
-        isVideoTesting = true;
-        btnVideoTest.disabled = true;
-        btnVideoTest.textContent = 'Testing Video Bandwidth…';
-        if (vtProgressWrap) vtProgressWrap.hidden = false;
-        if (vtProgressBar) vtProgressBar.style.width = '5%';
-
-        if (vtStatus) vtStatus.textContent = 'Probing Bandwidth…';
-        if (vtDesc)   vtDesc.textContent   = 'Measuring sustained video streaming bandwidth';
-
-        // Reset status rows
-        VIDEO_TIERS.forEach(({ res }) => {
-            const row = document.querySelector(`#vt-table tr[data-res="${res}"] .res-status`);
-            if (row) { row.className = 'res-status'; row.textContent = '--'; }
-        });
-
-        let measuredMbps = 0;
-        try {
-            // Perform genuine download measurement (6MB chunk) to gauge video buffer rate
-            const probeSize = 6 * 1024 * 1024;
-            const startTime = performance.now();
-            const res = await fetch(`${CFG.backendUrl}/api/download?size=${probeSize}&r=${Date.now()}`, { cache: 'no-store' });
-            if (!res.ok || !res.body) throw new Error('Video probe failed');
-
-            const reader = res.body.getReader();
-            let loadedBytes = 0;
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                loadedBytes += value.length;
-                const pct = Math.min((loadedBytes / probeSize) * 40, 40);
-                if (vtProgressBar) vtProgressBar.style.width = `${5 + pct}%`;
-            }
-            const durationSec = (performance.now() - startTime) / 1000;
-            measuredMbps = (loadedBytes * 8) / (durationSec * 1000000);
-        } catch (e) {
-            console.warn('Video bandwidth probe failed, checking latest speed test cache', e);
-            const history = getHistoryRecords();
-            measuredMbps = history.length > 0 ? history[0].download : 15;
+    function updateVideoQualityEstimate(knownDownloadMbps) {
+        if (typeof knownDownloadMbps === 'number' && knownDownloadMbps > 0) {
+            lastCompletedDownloadSpeed = knownDownloadMbps;
         }
 
-        // Animate each tier evaluation
-        let maxSupported = 'None';
-        for (let i = 0; i < VIDEO_TIERS.length; i++) {
-            const tier = VIDEO_TIERS[i];
-            const row = document.querySelector(`#vt-table tr[data-res="${tier.res}"] .res-status`);
+        const dlMbps = (typeof knownDownloadMbps === 'number' && knownDownloadMbps > 0)
+            ? knownDownloadMbps
+            : getLatestValidDownloadSpeed();
 
-            if (row) {
-                row.className = 'res-status testing';
-                row.textContent = 'Evaluating…';
+        if (vtProgressWrap) vtProgressWrap.hidden = true;
+
+        if (!dlMbps || dlMbps <= 0) {
+            // No valid speed test measurement found yet: require speed test first
+            if (vtStatus) vtStatus.textContent = 'Speed Test Required';
+            if (vtDesc) {
+                vtDesc.textContent = 'Run the speed test first. Video streaming estimates are calculated from your actual measured download throughput.';
             }
-            if (vtStatus) vtStatus.textContent = `Evaluating ${tier.res}…`;
+            if (btnVideoTest) {
+                btnVideoTest.textContent = 'Run Speed Test';
+                btnVideoTest.disabled = false;
+            }
+            VIDEO_TIERS.forEach(({ res }) => {
+                const row = document.querySelector(`#vt-table tr[data-res="${res}"] .res-status`);
+                if (row) {
+                    row.className = 'res-status text-muted';
+                    row.textContent = 'Run speed test first';
+                }
+            });
+            return;
+        }
 
-            const currentPct = 45 + ((i + 1) / VIDEO_TIERS.length) * 55;
-            if (vtProgressBar) vtProgressBar.style.width = `${currentPct}%`;
-            await sleep(250);
-
-            const isSupported = measuredMbps >= tier.minMbps;
+        // Evaluate tiers against actual measured download speed
+        let maxSupported = 'None';
+        VIDEO_TIERS.forEach(tier => {
+            const isSupported = dlMbps >= tier.minMbps;
             if (isSupported) maxSupported = tier.res;
 
+            const row = document.querySelector(`#vt-table tr[data-res="${tier.res}"] .res-status`);
             if (row) {
                 row.className = `res-status ${isSupported ? 'supported' : 'unsupported'}`;
                 row.textContent = isSupported ? '✓ Supported' : '✗ Buffer Risk';
             }
-        }
+        });
 
-        if (vtStatus) vtStatus.textContent = maxSupported === 'None' ? 'Buffer Warning' : `Max Quality: ${maxSupported}`;
+        if (vtStatus) {
+            vtStatus.textContent = maxSupported === 'None'
+                ? 'Limited Streaming (Buffer Risk)'
+                : `Max Quality: ${maxSupported}`;
+        }
         if (vtDesc) {
-            vtDesc.textContent = `Sustained Stream Bandwidth: ${measuredMbps.toFixed(1)} Mbps (Estimated for common H.264/AV1 codecs)`;
+            const speedFormatted = dlMbps >= 1000
+                ? (dlMbps / 1000).toFixed(2) + ' Gbps'
+                : dlMbps.toFixed(1) + ' Mbps';
+            vtDesc.textContent = `Estimated video streaming capability based on your measured download speed of ${speedFormatted}. Actual quality depends on streaming service, codec, other devices, network variation, and buffering.`;
         }
-        if (vtProgressBar) vtProgressBar.style.width = '100%';
+        if (btnVideoTest) {
+            btnVideoTest.textContent = 'Run New Speed Test';
+            btnVideoTest.disabled = false;
+        }
+    }
 
-        btnVideoTest.disabled = false;
-        btnVideoTest.textContent = 'Test Video Again';
-        isVideoTesting = false;
+    if (btnVideoTest) {
+        btnVideoTest.addEventListener('click', () => {
+            // Navigate to main speed test gauge to run or re-run a genuine test
+            window.location.hash = '#/';
+        });
     }
 
     // ══════════════════════════════════════════════════════════

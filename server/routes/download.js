@@ -7,6 +7,10 @@ const crypto = require('crypto');
 const CHUNK_SIZE = 1024 * 1024; 
 const chunk = crypto.randomBytes(CHUNK_SIZE);
 
+// Hard ceiling per request (50,000,000 bytes hard cap)
+const MAX_DOWNLOAD = 50000000;
+const DEFAULT_DOWNLOAD = 10 * 1024 * 1024; // 10 MB safe fallback
+
 router.get('/', (req, res) => {
   // Prevent caching
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -14,21 +18,22 @@ router.get('/', (req, res) => {
   res.setHeader('Expires', '0');
   res.setHeader('Content-Type', 'application/octet-stream');
   
-  // Determine requested size (default 25 MB, max 100 MB)
+  // Determine requested size (default 10 MB, max 50,000,000 bytes)
   let requestedBytes = parseInt(req.query.size, 10);
   if (isNaN(requestedBytes) || requestedBytes <= 0) {
-    requestedBytes = 25 * 1024 * 1024; 
+    requestedBytes = DEFAULT_DOWNLOAD;
   }
-  const MAX_DOWNLOAD = 100 * 1024 * 1024;
   const targetBytes = Math.min(requestedBytes, MAX_DOWNLOAD);
   
   res.setHeader('Content-Length', targetBytes);
 
   let bytesSent = 0;
+  let isClosed = false;
 
   function writeChunk() {
+    if (isClosed) return;
     let ok = true;
-    while (bytesSent < targetBytes && ok) {
+    while (bytesSent < targetBytes && ok && !isClosed) {
       const remaining = targetBytes - bytesSent;
       const bytesToWrite = Math.min(remaining, CHUNK_SIZE);
       const bufferToWrite = bytesToWrite === CHUNK_SIZE ? chunk : chunk.slice(0, bytesToWrite);
@@ -37,6 +42,8 @@ router.get('/', (req, res) => {
       bytesSent += bytesToWrite;
     }
     
+    if (isClosed) return;
+
     if (bytesSent < targetBytes) {
       // Buffer full, wait for drain event before continuing
       res.once('drain', writeChunk);
@@ -45,8 +52,9 @@ router.get('/', (req, res) => {
     }
   }
 
-  // Handle client disconnects to stop streaming
+  // Handle client disconnects to stop streaming immediately
   req.on('close', () => {
+    isClosed = true;
     bytesSent = targetBytes; // Stop the loop
   });
 

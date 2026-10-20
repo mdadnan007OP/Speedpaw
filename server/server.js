@@ -2,6 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
+// Automatically load .env file if supported natively (Node 20.6+) and present
+if (typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile();
+  } catch (_) {
+    // .env not present or provided externally via systemd/container
+  }
+}
+
 // Routes
 const healthRoute = require('./routes/health');
 const configRoute = require('./routes/config');
